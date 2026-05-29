@@ -42,7 +42,7 @@ CREATE TRIGGER email_accounts_updated_at
 CREATE TABLE pending_email_transactions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  email_account_id    UUID NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+  email_account_id    UUID REFERENCES email_accounts(id) ON DELETE SET NULL,
   gmail_message_id    TEXT NOT NULL,
   parsed_amount       NUMERIC(12, 2) NOT NULL CHECK (parsed_amount > 0),
   merchant            TEXT NOT NULL,

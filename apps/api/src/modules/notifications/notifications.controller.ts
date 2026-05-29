@@ -29,4 +29,11 @@ export class NotificationsController {
       res.json({ success: true });
     } catch (err) { next(err); }
   }
+
+  static async sendDailyReminders(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await NotificationsService.sendDailyReminders();
+      res.json({ success: true, data: result });
+    } catch (err) { next(err); }
+  }
 }

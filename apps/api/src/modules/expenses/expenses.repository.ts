@@ -98,4 +98,43 @@ export class ExpensesRepository {
     }, {});
     return { totalSpent, totalIncome, byCategory, transactionCount: (data ?? []).length };
   }
+
+  static async checkExistsByHashOrMetadata(
+    userId: string,
+    txHash: string,
+    date: string,
+    amount: number,
+    merchant: string
+  ): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('user_id', userId)
+      .or(`email_message_id.eq.statement_${txHash},and(amount.eq.${amount},merchant.eq.${merchant},date.eq.${date})`)
+      .limit(1);
+
+    if (error) throw new AppError(error.message, 500);
+    return data && data.length > 0;
+  }
+
+  static async createPendingTransaction(userId: string, tx: any) {
+    const { data, error } = await supabase
+      .from('pending_email_transactions')
+      .insert({
+        user_id: userId,
+        parsed_amount: tx.parsedAmount,
+        merchant: tx.merchant,
+        suggested_category: tx.suggestedCategory,
+        transaction_type: tx.transactionType ?? 'debit',
+        channel: tx.channel,
+        confidence: tx.confidence,
+        gmail_message_id: tx.gmailMessageId,
+        status: tx.status ?? 'pending',
+      })
+      .select()
+      .single();
+
+    if (error) throw new AppError(error.message, 500);
+    return data;
+  }
 }

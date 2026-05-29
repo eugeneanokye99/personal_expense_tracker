@@ -1,6 +1,8 @@
+import crypto from 'crypto';
 import { ExpensesRepository } from './expenses.repository';
 import { AppError } from '../../middleware/errorHandler';
 import { publishToQueue } from '../../config/rabbitmq';
+import { MomoParser } from '../../engine/momoParser';
 import type { CreateExpenseDto, ExpenseFilters, UpdateExpenseDto } from '../../../../../packages/shared/types';
 
 export class ExpensesService {
@@ -60,5 +62,70 @@ export class ExpensesService {
 
   static async getSummary(userId: string, opts: { from?: string; to?: string }) {
     return ExpensesRepository.getSummary(userId, opts);
+  }
+
+  static async uploadStatement(
+    userId: string,
+    fileBuffer: Buffer,
+    fileName: string,
+    mimeType: string
+  ): Promise<{ parsedCount: number; savedCount: number; pendingCount: number; duplicateCount: number }> {
+    const parsedTransactions = await MomoParser.parseStatement(fileBuffer, mimeType);
+
+    let savedCount = 0;
+    let pendingCount = 0;
+    let duplicateCount = 0;
+
+    for (const tx of parsedTransactions) {
+      const txHash = crypto
+        .createHash('md5')
+        .update(`${userId}_${tx.date}_${tx.amount}_${tx.merchant}_${tx.channel}`)
+        .digest('hex');
+
+      const isDuplicate = await ExpensesRepository.checkExistsByHashOrMetadata(
+        userId,
+        txHash,
+        tx.date,
+        tx.amount,
+        tx.merchant
+      );
+      if (isDuplicate) {
+        duplicateCount++;
+        continue;
+      }
+
+      if (tx.confidence >= 85) {
+        await ExpensesService.create(userId, {
+          amount: tx.amount,
+          category: tx.category,
+          merchant: tx.merchant,
+          date: tx.date,
+          source: 'email', // Route to 'email' (automatic entry) to fit DB constraint
+          transactionType: tx.transactionType,
+          channel: tx.channel,
+          note: `Uploaded statement transaction: ${tx.merchant} (${tx.channel}) [TxHash: ${txHash.slice(0, 8)}]`,
+        });
+        savedCount++;
+      } else {
+        await ExpensesRepository.createPendingTransaction(userId, {
+          parsedAmount: tx.amount,
+          merchant: tx.merchant,
+          suggestedCategory: tx.category,
+          transactionType: tx.transactionType,
+          channel: tx.channel,
+          confidence: tx.confidence,
+          gmailMessageId: `statement_${txHash}`, // reuse gmailMessageId for dedup index
+          status: 'pending',
+        });
+        pendingCount++;
+      }
+    }
+
+    return {
+      parsedCount: parsedTransactions.length,
+      savedCount,
+      pendingCount,
+      duplicateCount,
+    };
   }
 }

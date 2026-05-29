@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 export interface Expense {
   id: string;
@@ -30,25 +32,33 @@ interface ExpenseContextType {
   user: User;
   expenses: Expense[];
   budgets: Budget[];
-  updateUser: (user: Partial<User>) => void;
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
-  deleteExpense: (id: string) => void;
-  setBudget: (category: string, limit: number) => void;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, displayName: string, payDay?: number) => Promise<boolean>;
+  logout: () => Promise<void>;
+  updateUser: (user: Partial<User>) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  setBudget: (category: string, limit: number) => Promise<void>;
+  uploadStatement: (file: File) => Promise<boolean>;
   getTotalSpent: () => number;
   getSpentByCategory: (category: string) => number;
   getCategoryPercentage: (category: string) => number;
+  fetchData: () => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
 const CATEGORIES = [
-  'Food & Dining',
-  'Transportation',
-  'Shopping',
+  'Food',
+  'Transport',
+  'Utilities',
+  'Health',
   'Entertainment',
-  'Bills & Utilities',
-  'Healthcare',
-  'Travel',
+  'Housing',
+  'Shopping',
+  'Transfers',
   'Other'
 ];
 
@@ -65,113 +75,254 @@ const ENCOURAGING_MESSAGES = [
   "Wow, look at you being all responsible!"
 ];
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
+// Configure Axios Instance
+const api = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
+});
+
 export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User>({
     name: '',
     email: '',
-    currency: 'USD',
+    currency: 'GHS',
     emailConnected: false,
     notificationsEnabled: false,
     onboardingComplete: false
   });
 
-  const [expenses, setExpenses] = useState<Expense[]>([
-    {
-      id: '1',
-      amount: 45.99,
-      category: 'Food & Dining',
-      merchant: 'Starbucks',
-      date: new Date(2026, 4, 24),
-      description: 'Morning coffee',
-      tags: ['coffee', 'breakfast'],
-      source: 'manual'
-    },
-    {
-      id: '2',
-      amount: 23.50,
-      category: 'Transportation',
-      merchant: 'Uber',
-      date: new Date(2026, 4, 23),
-      description: 'Ride to downtown',
-      tags: ['commute', 'ride-share'],
-      source: 'email'
-    },
-    {
-      id: '3',
-      amount: 156.00,
-      category: 'Shopping',
-      merchant: 'Amazon',
-      date: new Date(2026, 4, 22),
-      description: 'Electronics',
-      tags: ['online', 'gadgets'],
-      source: 'email'
-    },
-    {
-      id: '4',
-      amount: 89.99,
-      category: 'Entertainment',
-      merchant: 'Netflix',
-      date: new Date(2026, 4, 21),
-      description: 'Monthly subscription',
-      tags: ['streaming', 'subscription'],
-      source: 'manual'
-    },
-    {
-      id: '5',
-      amount: 250.00,
-      category: 'Bills & Utilities',
-      merchant: 'Electric Company',
-      date: new Date(2026, 4, 20),
-      description: 'Monthly electric bill',
-      tags: ['utilities', 'recurring'],
-      source: 'email'
-    }
-  ]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const [budgets, setBudgets] = useState<Budget[]>([
-    { category: 'Food & Dining', limit: 500, spent: 0 },
-    { category: 'Transportation', limit: 300, spent: 0 },
-    { category: 'Shopping', limit: 400, spent: 0 },
-    { category: 'Entertainment', limit: 200, spent: 0 },
-    { category: 'Bills & Utilities', limit: 600, spent: 0 }
-  ]);
-
-  // Update budget spent amounts when expenses change
+  // Silent JWT Refresh interceptor
   useEffect(() => {
-    const updatedBudgets = budgets.map(budget => ({
-      ...budget,
-      spent: expenses
-        .filter(e => e.category === budget.category)
-        .reduce((sum, e) => sum + e.amount, 0)
-    }));
-    setBudgets(updatedBudgets);
-  }, [expenses]);
-
-  const updateUser = (updates: Partial<User>) => {
-    setUser(prev => ({ ...prev, ...updates }));
-  };
-
-  const addExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense = {
-      ...expense,
-      id: Date.now().toString()
-    };
-    setExpenses(prev => [newExpense, ...prev]);
-  };
-
-  const deleteExpense = (id: string) => {
-    setExpenses(prev => prev.filter(e => e.id !== id));
-  };
-
-  const setBudget = (category: string, limit: number) => {
-    setBudgets(prev => {
-      const existing = prev.find(b => b.category === category);
-      if (existing) {
-        return prev.map(b => b.category === category ? { ...b, limit } : b);
-      } else {
-        return [...prev, { category, limit, spent: getSpentByCategory(category) }];
+    const interceptor = api.interceptors.response.use(
+      (res) => res,
+      async (err) => {
+        const originalRequest = err.config;
+        if (err.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+            return api(originalRequest);
+          } catch (refreshErr) {
+            setIsAuthenticated(false);
+            setUser(prev => ({ ...prev, onboardingComplete: false }));
+          }
+        }
+        return Promise.reject(err);
       }
-    });
+    );
+    return () => api.interceptors.response.eject(interceptor);
+  }, []);
+
+  // Check login status on launch
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const res = await api.get('/users/me');
+        if (res.data?.success && res.data?.data) {
+          const profile = res.data.data;
+          setUser({
+            name: profile.display_name,
+            email: profile.email,
+            currency: profile.currency || 'GHS',
+            emailConnected: true,
+            notificationsEnabled: profile.alert_frequency !== 'off',
+            onboardingComplete: profile.onboarding_complete
+          });
+          setIsAuthenticated(true);
+          await fetchData();
+        }
+      } catch (err) {
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    initAuth();
+  }, [isAuthenticated]);
+
+  const fetchData = async () => {
+    try {
+      // 1. Fetch Expenses (all page 1 items up to 1000)
+      const expensesRes = await api.get('/expenses', { params: { page: 1, limit: 1000 } });
+      if (expensesRes.data?.success) {
+        const items = expensesRes.data.data.items || [];
+        setExpenses(items.map((e: any) => ({
+          id: e.id,
+          amount: Number(e.amount),
+          category: e.category,
+          merchant: e.merchant,
+          date: new Date(e.date),
+          description: e.note || '',
+          tags: [e.channel || 'manual'],
+          source: e.source,
+        })));
+      }
+
+      // 2. Fetch Budgets
+      const budgetsRes = await api.get('/budgets');
+      if (budgetsRes.data?.success) {
+        const items = budgetsRes.data.data || [];
+        setBudgets(items.map((b: any) => ({
+          category: b.category,
+          limit: Number(b.limitAmount),
+          spent: Number(b.spent || 0)
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch data from API:', err);
+    }
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      if (res.data?.success) {
+        setIsAuthenticated(true);
+        toast.success('Logged in successfully!');
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Login failed');
+      return false;
+    }
+  };
+
+  const register = async (email: string, password: string, displayName: string, payDay?: number): Promise<boolean> => {
+    try {
+      const res = await api.post('/auth/register', { email, password, displayName, payDay });
+      if (res.data?.success) {
+        toast.success('Account created! Logging you in...');
+        return login(email, password);
+      }
+      return false;
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Registration failed');
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.error('Logout request failed:', err);
+    } finally {
+      setIsAuthenticated(false);
+      setUser({
+        name: '',
+        email: '',
+        currency: 'GHS',
+        emailConnected: false,
+        notificationsEnabled: false,
+        onboardingComplete: false
+      });
+      setExpenses([]);
+      setBudgets([]);
+      toast.success('Logged out successfully');
+    }
+  };
+
+  const updateUser = async (updates: Partial<User>) => {
+    try {
+      const payload: any = {};
+      if (updates.name !== undefined) payload.displayName = updates.name;
+      if (updates.currency !== undefined) payload.currency = updates.currency;
+      if (updates.notificationsEnabled !== undefined) {
+        payload.alertFrequency = updates.notificationsEnabled ? 'all' : 'off';
+      }
+      if (updates.onboardingComplete !== undefined) {
+        // Complete onboarding via custom mapping if needed, or patch
+        payload.onboardingComplete = updates.onboardingComplete;
+      }
+
+      const res = await api.patch('/users/me', payload);
+      if (res.data?.success) {
+        setUser(prev => ({ ...prev, ...updates }));
+        toast.success('Profile settings updated!');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update settings');
+    }
+  };
+
+  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    try {
+      const res = await api.post('/expenses', {
+        amount: expense.amount,
+        category: expense.category,
+        merchant: expense.merchant,
+        note: expense.description,
+        date: expense.date.toISOString(),
+        source: expense.source,
+        transactionType: 'debit',
+      });
+
+      if (res.data?.success) {
+        await fetchData(); // refresh list & computed budgets
+        toast.success('Expense added successfully!');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to add expense');
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    try {
+      const res = await api.delete(`/expenses/${id}`);
+      if (res.data?.success) {
+        setExpenses(prev => prev.filter(e => e.id !== id));
+        await fetchData(); // recompute budgets
+        toast.success('Expense deleted');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete expense');
+    }
+  };
+
+  const setBudget = async (category: string, limit: number) => {
+    try {
+      const res = await api.post('/budgets', {
+        category,
+        limitAmount: limit,
+      });
+
+      if (res.data?.success) {
+        await fetchData();
+        toast.success(`Budget for ${category} updated!`);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to set budget');
+    }
+  };
+
+  const uploadStatement = async (file: File): Promise<boolean> => {
+    const formData = new FormData();
+    formData.append('statement', file);
+
+    try {
+      const res = await api.post('/expenses/upload-statement', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data?.success) {
+        const stats = res.data.data;
+        toast.success(`Parsed ${stats.parsedCount} entries! Saved: ${stats.savedCount}, Pending: ${stats.pendingCount}, Duplicates: ${stats.duplicateCount}`);
+        await fetchData();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to parse statement');
+      return false;
+    }
   };
 
   const getTotalSpent = () => {
@@ -180,7 +331,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const getSpentByCategory = (category: string) => {
     return expenses
-      .filter(e => e.category === category)
+      .filter(e => e.category.toLowerCase() === category.toLowerCase())
       .reduce((sum, e) => sum + e.amount, 0);
   };
 
@@ -196,13 +347,20 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         user,
         expenses,
         budgets,
+        isAuthenticated,
+        isLoading,
+        login,
+        register,
+        logout,
         updateUser,
         addExpense,
         deleteExpense,
         setBudget,
+        uploadStatement,
         getTotalSpent,
         getSpentByCategory,
-        getCategoryPercentage
+        getCategoryPercentage,
+        fetchData
       }}
     >
       {children}

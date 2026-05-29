@@ -74,4 +74,17 @@ export class ExpensesController {
       res.json({ success: true, data: summary });
     } catch (err) { next(err); }
   }
+
+  static async uploadStatement(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) throw new AppError('No statement file uploaded', 400);
+      const result = await ExpensesService.uploadStatement(
+        req.user!.id,
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+      res.status(201).json({ success: true, data: result });
+    } catch (err) { next(err); }
+  }
 }
