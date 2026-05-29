@@ -5,7 +5,7 @@ import type { UpsertBudgetDto } from '../../../../../packages/shared/types';
 export class BudgetsService {
   static async listWithSpent(userId: string) {
     const budgets = await BudgetsRepository.listByUser(userId);
-    return budgets.map(b => ({
+    return budgets.map((b: any) => ({
       ...b,
       spent: b.spent ?? 0,
       remaining: Math.max(0, b.limit_amount - (b.spent ?? 0)),
@@ -22,8 +22,8 @@ export class BudgetsService {
 
   static async getOverview(userId: string) {
     const budgets = await BudgetsService.listWithSpent(userId);
-    const totalLimit = budgets.reduce((s, b) => s + b.limit_amount, 0);
-    const totalSpent = budgets.reduce((s, b) => s + (b.spent ?? 0), 0);
+    const totalLimit = budgets.reduce((s: number, b: any) => s + Number(b.limit_amount), 0);
+    const totalSpent = budgets.reduce((s: number, b: any) => s + (b.spent ?? 0), 0);
     return {
       totalLimit,
       totalSpent,

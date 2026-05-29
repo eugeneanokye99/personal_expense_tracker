@@ -1,26 +1,28 @@
 name: CI/CD — SpendWisely
 
-# Triggers on every push to main (i.e., after a PR is merged)
+# Triggers on push/PR to main or develop
 on:
   push:
     branches:
       - main
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '9'
 
 # ─────────────────────────────────────────────────────────────
-# JOB 1 — Lint & Type Check (runs on every PR + push to main)
+# JOBS DEFINITION
 # ─────────────────────────────────────────────────────────────
 jobs:
-  lint-and-typecheck:
-    name: Lint & Type Check
+  # ── JOB 1: Backend Lint & Typecheck ───────────────────────
+  lint-and-typecheck-api:
+    name: API: Lint & Typecheck
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,18 +44,37 @@ jobs:
       - name: Type check — API
         run: pnpm --filter @spendwisely/api typecheck
 
-      - name: Type check — Web
-        run: pnpm --filter @spendwisely/web run build --mode development
-        # Vite build in dev mode acts as a type check without minification
-
-# ─────────────────────────────────────────────────────────────
-# JOB 2 — Run Tests (runs on every PR + push to main)
-# ─────────────────────────────────────────────────────────────
-  test:
-    name: Tests
+  # ── JOB 2: Frontend Lint & Build Check ────────────────────
+  lint-and-typecheck-web:
+    name: Web: Lint & Build Check
     runs-on: ubuntu-latest
-    needs: lint-and-typecheck
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Check — Web
+        run: pnpm --filter @spendwisely/web run build --mode development
+        # Vite build in dev mode checks for compile errors without minification
+
+  # ── JOB 3: Backend Tests (with Live Redis & RabbitMQ) ─────
+  test-api:
+    name: API: Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck-api
     services:
       redis:
         image: redis:7.2-alpine
@@ -116,15 +137,38 @@ jobs:
       - name: Run API tests
         run: pnpm --filter @spendwisely/api test --if-present
 
-# ─────────────────────────────────────────────────────────────
-# JOB 3 — Run Supabase Migrations (only on push to main)
-# ─────────────────────────────────────────────────────────────
-  migrate:
-    name: Run DB Migrations
+  # ── JOB 4: Frontend Tests ──────────────────────────────────
+  test-web:
+    name: Web: Frontend Tests
     runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: lint-and-typecheck-web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Web tests
+        run: pnpm --filter @spendwisely/web test --if-present
+
+  # ── JOB 5: Push DB Migrations (only on push to main) ───────
+  migrate:
+    name: DB: Push Supabase Migrations
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,43 +185,34 @@ jobs:
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-# ─────────────────────────────────────────────────────────────
-# JOB 4 — Build & Deploy API (only on push to main)
-# Uses Railway for backend deployment.
-# ─────────────────────────────────────────────────────────────
+  # ── JOB 6: Deploy API Server (only on push to main) ────────
   deploy-api:
-    name: Deploy API → Railway
+    name: Deploy API → Render
     runs-on: ubuntu-latest
     needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Trigger Render API Deploy Hook
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}"
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+  # ── JOB 7: Deploy Worker (only on push to main) ───────────
+  deploy-worker:
+    name: Deploy Worker → Render
+    runs-on: ubuntu-latest
+    needs: migrate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render Worker Deploy Hook
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}"
 
-      - name: Deploy API server
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service spendwisely-api --detach
-
-      - name: Deploy Worker process
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service spendwisely-worker --detach
-
-# ─────────────────────────────────────────────────────────────
-# JOB 5 — Build & Deploy Frontend (only on push to main)
-# Uses Vercel for frontend deployment.
-# ─────────────────────────────────────────────────────────────
+  # ── JOB 8: Deploy Frontend (only on push to main) ──────────
   deploy-web:
     name: Deploy Web → Vercel
     runs-on: ubuntu-latest
     needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -207,26 +242,5 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: apps/web
+          working-directory: .
           vercel-args: '--prod'
-
-# ─────────────────────────────────────────────────────────────
-# Required GitHub Secrets (set in repo Settings → Secrets):
-#
-# For all environments:
-#   SUPABASE_URL                 ← Supabase project URL
-#   SUPABASE_SERVICE_ROLE_KEY    ← Supabase service role key
-#   SUPABASE_ACCESS_TOKEN        ← Supabase CLI auth token (supabase.com/dashboard → Account)
-#   SUPABASE_PROJECT_REF         ← Project ref (e.g., abcdefghijklmnop)
-#   SUPABASE_DB_PASSWORD         ← Supabase DB password
-#   JWT_SECRET                   ← 64-byte hex string
-#   JWT_REFRESH_SECRET           ← Different 64-byte hex string
-#   ENCRYPTION_KEY               ← 64-char hex string (32 bytes)
-#
-# For deployment:
-#   RAILWAY_TOKEN                ← Railway API token
-#   VERCEL_TOKEN                 ← Vercel API token
-#   VERCEL_ORG_ID                ← Vercel team/org ID
-#   VERCEL_PROJECT_ID            ← Vercel project ID
-#   VITE_API_URL                 ← Deployed API URL (e.g., https://api.spendwisely.app/api/v1)
-# ─────────────────────────────────────────────────────────────

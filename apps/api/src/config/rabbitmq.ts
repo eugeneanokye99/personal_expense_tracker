@@ -1,8 +1,8 @@
 import amqplib, { Channel, Connection } from 'amqplib';
 import { env } from './env';
 
-let connection: Connection | null = null;
-let channel: Channel | null = null;
+let connection: any = null;
+let channel: any = null;
 
 // Queue names — single source of truth
 export const QUEUES = {
@@ -44,7 +44,7 @@ async function getChannel(): Promise<Channel> {
     connection = null;
   });
 
-  connection.on('error', (err) => console.error('❌ RabbitMQ error:', err.message));
+  connection.on('error', (err: any) => console.error('❌ RabbitMQ error:', err.message));
   console.log('✅ RabbitMQ connected');
 
   return channel;
