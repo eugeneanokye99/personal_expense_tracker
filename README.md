@@ -1,12 +1,12 @@
-# Sika 💰
+# SpendWisely 💰
 
 > **Know where your money goes.** A personal expense tracker built for the Ghanaian market, with automatic email parsing, SMS alerts via Arkesel, and a personality-driven notification system.
 
 ---
 
-## What is Sika?
+## What is SpendWisely?
 
-Sika (meaning *gold* / *money* in Twi) is a PWA expense tracker for everyday Ghanaians. It connects to your Gmail to automatically detect transaction emails from MTN MoMo, GCB Bank, Ecobank, Fidelity, Absa, and Stanbic — and logs them without you lifting a finger. When you do spend cash or make MoMo payments not confirmed by email, manual entry takes under 10 seconds.
+SpendWisely is a PWA expense tracker for everyday Ghanaians. It connects to your Gmail to automatically detect transaction emails from MTN MoMo, GCB Bank, Ecobank, Fidelity, Absa, and Stanbic — and logs them without you lifting a finger. When you do spend cash or make MoMo payments not confirmed by email, manual entry takes under 10 seconds.
 
 ---
 
@@ -30,7 +30,7 @@ Sika (meaning *gold* / *money* in Twi) is a PWA expense tracker for everyday Gha
 ## Project Structure
 
 ```
-sika/
+spendwisely/
 ├── apps/
 │   ├── web/              ← React PWA frontend
 │   └── api/              ← Node.js Express backend
@@ -100,8 +100,8 @@ Express API Server (Node.js)
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/your-org/sika.git
-cd sika
+git clone https://github.com/your-org/spendwisely.git
+cd spendwisely
 pnpm install
 ```
 
@@ -157,13 +157,13 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ```bash
 # Terminal 1 — API server
-pnpm --filter @sika/api dev
+pnpm --filter @spendwisely/api dev
 
 # Terminal 2 — Worker process
-pnpm --filter @sika/api worker
+pnpm --filter @spendwisely/api worker
 
 # Terminal 3 — Frontend
-pnpm --filter @sika/web dev
+pnpm --filter @spendwisely/web dev
 ```
 
 ---
