@@ -16,6 +16,7 @@ export interface User {
   notificationMode: 'funny' | 'serious';
   alertFrequency: 'all' | 'budget' | 'weekly' | 'off';
   budgetResetDay: number; // 1–28, default: 1 (set to payday during onboarding)
+  budgetResetInterval: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   onboardingComplete: boolean;
   createdAt: string;
 }
@@ -42,6 +43,7 @@ export interface Budget {
   category: string;
   limitAmount: number;
   resetDay: number; // 1–28
+  resetInterval: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   lastResetAt: string; // ISO — start of current budget period
   // Computed fields returned by API
   spent?: number;
@@ -106,6 +108,7 @@ export interface RegisterDto {
   displayName: string;
   phoneNumber?: string;
   payDay?: number; // 1–28 — sets budgetResetDay default
+  budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 }
 
 export interface LoginResult {
@@ -120,6 +123,7 @@ export interface CreateUserDto {
   passwordHash?: string;
   googleId?: string;
   budgetResetDay?: number;
+  budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   phoneNumber?: string;
 }
 
@@ -129,6 +133,7 @@ export interface UpdateUserDto {
   notificationMode?: 'funny' | 'serious';
   alertFrequency?: 'all' | 'budget' | 'weekly' | 'off';
   budgetResetDay?: number;
+  budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   phoneNumber?: string;
 }
 
@@ -158,6 +163,7 @@ export interface UpsertBudgetDto {
   category: string;
   limitAmount: number;
   resetDay?: number; // if omitted, inherits from user.budgetResetDay
+  resetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 }
 
 export interface ExpenseFilters {

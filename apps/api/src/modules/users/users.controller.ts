@@ -5,7 +5,7 @@ import { AppError } from '../../middleware/errorHandler';
 export class UsersController {
   static async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const user = await UsersService.getById(req.user!.id);
+      const user = await UsersService.getById(req.supabase, req.user!.id);
       res.json({ success: true, data: user });
     } catch (err) {
       next(err);
@@ -14,12 +14,12 @@ export class UsersController {
 
   static async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const allowed = ['displayName', 'currency', 'notificationMode', 'alertFrequency', 'budgetResetDay', 'phoneNumber'];
+      const allowed = ['displayName', 'currency', 'notificationMode', 'alertFrequency', 'budgetResetDay', 'phoneNumber', 'budgetResetInterval'];
       const updates = Object.fromEntries(
         Object.entries(req.body).filter(([key]) => allowed.includes(key))
       );
       if (Object.keys(updates).length === 0) throw new AppError('No valid fields to update', 400);
-      const user = await UsersService.update(req.user!.id, updates);
+      const user = await UsersService.update(req.supabase, req.user!.id, updates);
       res.json({ success: true, data: user });
     } catch (err) {
       next(err);
@@ -30,7 +30,7 @@ export class UsersController {
     try {
       const { password } = req.body;
       if (!password) throw new AppError('Password confirmation required', 400);
-      await UsersService.deleteAccount(req.user!.id, password);
+      await UsersService.deleteAccount(req.supabase, req.user!.id, password);
       res.clearCookie('refresh_token').json({ success: true, message: 'Account deleted' });
     } catch (err) {
       next(err);

@@ -1,10 +1,9 @@
-import { supabase } from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import type { CreateExpenseDto, ExpenseFilters, UpdateExpenseDto } from '../../../../../packages/shared/types';
 
 export class ExpensesRepository {
-  static async list(userId: string, filters: ExpenseFilters) {
-    let query = supabase
+  static async list(client: any, userId: string, filters: ExpenseFilters) {
+    let query = client
       .from('expenses')
       .select('*', { count: 'exact' })
       .eq('user_id', userId)
@@ -27,14 +26,14 @@ export class ExpensesRepository {
     return { items: data ?? [], total: count ?? 0, page: filters.page ?? 1, limit: filters.limit ?? 20 };
   }
 
-  static async findById(id: string) {
-    const { data, error } = await supabase.from('expenses').select('*').eq('id', id).single();
+  static async findById(client: any, id: string) {
+    const { data, error } = await client.from('expenses').select('*').eq('id', id).single();
     if (error && error.code !== 'PGRST116') throw new AppError(error.message, 500);
     return data;
   }
 
-  static async create(userId: string, dto: CreateExpenseDto) {
-    const { data, error } = await supabase
+  static async create(client: any, userId: string, dto: CreateExpenseDto) {
+    const { data, error } = await client
       .from('expenses')
       .insert({
         user_id: userId,
@@ -55,8 +54,8 @@ export class ExpensesRepository {
     return data;
   }
 
-  static async update(id: string, dto: UpdateExpenseDto) {
-    const { data, error } = await supabase
+  static async update(client: any, id: string, dto: UpdateExpenseDto) {
+    const { data, error } = await client
       .from('expenses')
       .update(dto)
       .eq('id', id)
@@ -66,23 +65,23 @@ export class ExpensesRepository {
     return data;
   }
 
-  static async delete(id: string): Promise<void> {
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
+  static async delete(client: any, id: string): Promise<void> {
+    const { error } = await client.from('expenses').delete().eq('id', id);
     if (error) throw new AppError(error.message, 500);
   }
 
-  static async getDistinctMerchants(userId: string): Promise<string[]> {
-    const { data, error } = await supabase
+  static async getDistinctMerchants(client: any, userId: string): Promise<string[]> {
+    const { data, error } = await client
       .from('expenses')
       .select('merchant')
       .eq('user_id', userId)
       .order('merchant');
     if (error) throw new AppError(error.message, 500);
-    return [...new Set((data ?? []).map(r => r.merchant))];
+    return [...new Set((data ?? []).map((r: any) => r.merchant))] as string[];
   }
 
-  static async getSummary(userId: string, opts: { from?: string; to?: string }) {
-    let query = supabase
+  static async getSummary(client: any, userId: string, opts: { from?: string; to?: string }) {
+    let query = client
       .from('expenses')
       .select('amount, category, transaction_type')
       .eq('user_id', userId);
@@ -90,9 +89,9 @@ export class ExpensesRepository {
     if (opts.to) query = query.lte('date', opts.to);
     const { data, error } = await query;
     if (error) throw new AppError(error.message, 500);
-    const totalSpent = (data ?? []).filter(e => e.transaction_type === 'debit').reduce((s, e) => s + e.amount, 0);
-    const totalIncome = (data ?? []).filter(e => e.transaction_type === 'credit').reduce((s, e) => s + e.amount, 0);
-    const byCategory = (data ?? []).reduce((acc: Record<string, number>, e) => {
+    const totalSpent = (data ?? []).filter((e: any) => e.transaction_type === 'debit').reduce((s: number, e: any) => s + e.amount, 0);
+    const totalIncome = (data ?? []).filter((e: any) => e.transaction_type === 'credit').reduce((s: number, e: any) => s + e.amount, 0);
+    const byCategory = (data ?? []).reduce((acc: Record<string, number>, e: any) => {
       if (e.transaction_type === 'debit') acc[e.category] = (acc[e.category] ?? 0) + e.amount;
       return acc;
     }, {});
@@ -100,13 +99,14 @@ export class ExpensesRepository {
   }
 
   static async checkExistsByHashOrMetadata(
+    client: any,
     userId: string,
     txHash: string,
     date: string,
     amount: number,
     merchant: string
   ): Promise<boolean> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('expenses')
       .select('id')
       .eq('user_id', userId)
@@ -117,8 +117,8 @@ export class ExpensesRepository {
     return data && data.length > 0;
   }
 
-  static async createPendingTransaction(userId: string, tx: any) {
-    const { data, error } = await supabase
+  static async createPendingTransaction(client: any, userId: string, tx: any) {
+    const { data, error } = await client
       .from('pending_email_transactions')
       .insert({
         user_id: userId,

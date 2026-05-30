@@ -17,6 +17,8 @@ export interface Budget {
   category: string;
   limit: number;
   spent: number;
+  resetInterval: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  resetDay?: number;
 }
 
 export interface User {
@@ -26,6 +28,9 @@ export interface User {
   emailConnected: boolean;
   notificationsEnabled: boolean;
   onboardingComplete: boolean;
+  budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  budgetResetDay?: number;
+  phoneNumber?: string;
 }
 
 interface ExpenseContextType {
@@ -35,12 +40,12 @@ interface ExpenseContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, displayName: string, payDay?: number) => Promise<boolean>;
+  register: (email: string, password: string, displayName: string, payDay?: number, phoneNumber?: string, budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly') => Promise<boolean>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<User>) => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  setBudget: (category: string, limit: number) => Promise<void>;
+  setBudget: (category: string, limit: number, resetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly', resetDay?: number) => Promise<void>;
   uploadStatement: (file: File) => Promise<boolean>;
   getTotalSpent: () => number;
   getSpentByCategory: (category: string) => number;
@@ -90,7 +95,10 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     currency: 'GHS',
     emailConnected: false,
     notificationsEnabled: false,
-    onboardingComplete: false
+    onboardingComplete: false,
+    budgetResetInterval: 'monthly',
+    budgetResetDay: 1,
+    phoneNumber: '',
   });
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -133,7 +141,10 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
             currency: profile.currency || 'GHS',
             emailConnected: true,
             notificationsEnabled: profile.alert_frequency !== 'off',
-            onboardingComplete: profile.onboarding_complete
+            onboardingComplete: profile.onboarding_complete,
+            budgetResetInterval: profile.budget_reset_interval || 'monthly',
+            budgetResetDay: profile.budget_reset_day || 1,
+            phoneNumber: profile.phone_number,
           });
           setIsAuthenticated(true);
           await fetchData();
@@ -172,7 +183,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setBudgets(items.map((b: any) => ({
           category: b.category,
           limit: Number(b.limitAmount),
-          spent: Number(b.spent || 0)
+          spent: Number(b.spent || 0),
+          resetInterval: b.resetInterval || 'monthly',
+          resetDay: b.resetDay,
         })));
       }
     } catch (err) {
@@ -195,9 +208,23 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const register = async (email: string, password: string, displayName: string, payDay?: number): Promise<boolean> => {
+  const register = async (
+    email: string,
+    password: string,
+    displayName: string,
+    payDay?: number,
+    phoneNumber?: string,
+    budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+  ): Promise<boolean> => {
     try {
-      const res = await api.post('/auth/register', { email, password, displayName, payDay });
+      const res = await api.post('/auth/register', {
+        email,
+        password,
+        displayName,
+        payDay,
+        phoneNumber,
+        budgetResetInterval,
+      });
       if (res.data?.success) {
         toast.success('Account created! Logging you in...');
         return login(email, password);
@@ -222,7 +249,10 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         currency: 'GHS',
         emailConnected: false,
         notificationsEnabled: false,
-        onboardingComplete: false
+        onboardingComplete: false,
+        budgetResetInterval: 'monthly',
+        budgetResetDay: 1,
+        phoneNumber: '',
       });
       setExpenses([]);
       setBudgets([]);
@@ -239,8 +269,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         payload.alertFrequency = updates.notificationsEnabled ? 'all' : 'off';
       }
       if (updates.onboardingComplete !== undefined) {
-        // Complete onboarding via custom mapping if needed, or patch
         payload.onboardingComplete = updates.onboardingComplete;
+      }
+      if (updates.budgetResetInterval !== undefined) {
+        payload.budgetResetInterval = updates.budgetResetInterval;
+      }
+      if (updates.budgetResetDay !== undefined) {
+        payload.budgetResetDay = updates.budgetResetDay;
+      }
+      if (updates.phoneNumber !== undefined) {
+        payload.phoneNumber = updates.phoneNumber;
       }
 
       const res = await api.patch('/users/me', payload);
@@ -287,11 +325,13 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const setBudget = async (category: string, limit: number) => {
+  const setBudget = async (category: string, limit: number, resetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly', resetDay?: number) => {
     try {
       const res = await api.post('/budgets', {
         category,
         limitAmount: limit,
+        resetInterval,
+        resetDay,
       });
 
       if (res.data?.success) {

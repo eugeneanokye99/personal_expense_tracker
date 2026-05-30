@@ -12,6 +12,8 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
   const { budgets, setBudget, user } = useExpenseStore();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [resetInterval, setResetInterval] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [resetDay, setResetDay] = useState('1');
 
   const getCurrencySymbol = (code: string) => {
     const symbols: Record<string, string> = {
@@ -42,13 +44,21 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
       return;
     }
 
-    setBudget(selectedCategory, amount);
+    const dayNum = resetInterval === 'monthly' ? parseInt(resetDay) || 1 : undefined;
+    if (dayNum !== undefined && (dayNum < 1 || dayNum > 28)) {
+      toast.error('Reset day must be between 1 and 28');
+      return;
+    }
+
+    setBudget(selectedCategory, amount, resetInterval, dayNum);
     toast.success('Budget set successfully!', {
-      description: `${selectedCategory}: ${currencySymbol}${amount.toFixed(2)}`
+      description: `${selectedCategory}: ${currencySymbol}${amount.toFixed(2)} (${resetInterval})`
     });
 
     setSelectedCategory('');
     setBudgetAmount('');
+    setResetInterval('monthly');
+    setResetDay('1');
   };
 
   return (
@@ -76,33 +86,78 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-        >
-          <option value="">Select category</option>
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
+      <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-slate-400 text-xs mb-1 font-medium">Category</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            >
+              <option value="">Select category</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
 
-        <input
-          type="number"
-          step="0.01"
-          value={budgetAmount}
-          onChange={(e) => setBudgetAmount(e.target.value)}
-          placeholder="Budget amount"
-          className="px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-        />
+          <div>
+            <label className="block text-slate-400 text-xs mb-1 font-medium">Amount ({currencySymbol})</label>
+            <input
+              type="number"
+              step="0.01"
+              value={budgetAmount}
+              onChange={(e) => setBudgetAmount(e.target.value)}
+              placeholder="e.g. 500"
+              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            />
+          </div>
 
-        <button
-          type="submit"
-          className="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-violet-500/30 transition-all"
-        >
-          Set Budget
-        </button>
+          <div>
+            <label className="block text-slate-400 text-xs mb-1 font-medium">Reset Cycle</label>
+            <select
+              value={resetInterval}
+              onChange={(e) => setResetInterval(e.target.value as any)}
+              className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            >
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          <div>
+            {resetInterval === 'monthly' ? (
+              <>
+                <label className="block text-slate-400 text-xs mb-1 font-medium">Reset Day (1-28)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="28"
+                  value={resetDay}
+                  onChange={(e) => setResetDay(e.target.value)}
+                  placeholder="Reset Day"
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                />
+              </>
+            ) : (
+              <div className="h-full flex items-end">
+                <span className="text-xs text-slate-500 pb-3 block">Resets every cycle dynamically</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-violet-500/30 transition-all"
+          >
+            Set Budget
+          </button>
+        </div>
       </form>
 
       <div className="space-y-3">
@@ -140,8 +195,9 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
                       {percentage.toFixed(0)}%
                     </span>
                   </div>
-                  <div className="text-slate-400 text-sm">
-                    {currencySymbol}{budget.spent.toFixed(2)} / {currencySymbol}{budget.limit.toFixed(2)}
+                  <div className="text-slate-400 text-sm flex items-center justify-between">
+                    <span>{currencySymbol}{budget.spent.toFixed(2)} / {currencySymbol}{budget.limit.toFixed(2)}</span>
+                    <span className="text-xs px-2 py-0.5 bg-slate-800 rounded-md capitalize text-slate-300">{budget.resetInterval || 'monthly'}</span>
                   </div>
                   <div className="mt-2 w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
                     <div

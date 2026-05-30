@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useExpenseStore } from '../store/ExpenseStore';
-import { Sparkles, Mail, Lock, User as UserIcon, Calendar } from 'lucide-react';
+import { Sparkles, Mail, Lock, User as UserIcon, Calendar, Phone } from 'lucide-react';
 
 export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [payDay, setPayDay] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       if (isRegister) {
-        await register(email, password, displayName, payDay);
+        await register(email, password, displayName, payDay, phoneNumber);
       } else {
         await login(email, password);
       }
@@ -61,7 +62,22 @@ export default function Login() {
               </div>
 
               <div>
-                <label className="block text-slate-400 text-sm font-medium mb-1.5">Pay Day (Budget Reset Day)</label>
+                <label className="block text-slate-400 text-sm font-medium mb-1.5">Phone Number (MTN, Telecel, etc.)</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="tel"
+                    required
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="E.g., 0244123456"
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-850 border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 text-sm font-medium mb-1.5">Income Day (Budget Reset Day)</label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                   <input

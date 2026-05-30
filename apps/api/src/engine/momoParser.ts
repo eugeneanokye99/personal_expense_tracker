@@ -89,7 +89,7 @@ export class MomoParser {
       // Extract Merchant / Recipient
       // Match text after sent/to/from/received/payment
       let merchant = 'Unknown Merchant';
-      const merchantMatch = /(?:sent to|payment to|received from|transfer to|paid to|agent)\s+([A-Za-z0-9\s&_.'-]+?)(?=\s+(?:GHS|₵|\d))/i.exec(trimmedLine);
+      const merchantMatch = /(?:sent to|payment to|received from|transfer to|paid to|from|agent)\s+([A-Za-z0-9\s&_.'-]+?)(?=\s+(?:GHS|₵|\d|Reference|Success|$))/i.exec(trimmedLine);
       
       if (merchantMatch && merchantMatch[1]) {
         merchant = merchantMatch[1].trim().replace(/\s+/g, ' ');

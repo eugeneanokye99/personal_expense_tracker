@@ -1,21 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../config/env';
-import { redis } from '../config/redis';
+import { supabase as adminSupabase } from '../config/database';
 import { AppError } from './errorHandler';
 
-interface JwtPayload {
-  sub: string;
-  jti: string;
-  iat: number;
-  exp: number;
-}
-
-// Augment Express Request to carry verified user
+// Augment Express Request to carry verified user and request-specific Supabase client
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string };
+      user?: { id: string; email?: string };
+      supabase?: SupabaseClient;
     }
   }
 }
@@ -32,19 +26,29 @@ export async function authenticate(
     }
 
     const token = authHeader.split(' ')[1];
-    let payload: JwtPayload;
 
-    try {
-      payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    } catch {
-      throw new AppError('Invalid or expired token', 401);
+    // Authenticate the user token directly via Supabase Auth
+    const { data: { user }, error } = await adminSupabase.auth.getUser(token);
+    if (error || !user) {
+      throw new AppError('Invalid or expired Supabase authentication token', 401);
     }
 
-    // Check token is not blacklisted (logged out)
-    const blacklisted = await redis.exists(`jwt:blacklist:${payload.jti}`);
-    if (blacklisted) throw new AppError('Token has been revoked', 401);
+    // Store user session on request
+    req.user = { id: user.id, email: user.email };
 
-    req.user = { id: payload.sub };
+    // Initialize request-specific Supabase client signed with user's JWT to enforce RLS
+    req.supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
     next();
   } catch (err) {
     next(err);

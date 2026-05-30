@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Bell, DollarSign, ArrowRight, Sparkles } from 'lucide-react';
+import { Mail, Bell, DollarSign, ArrowRight, Sparkles, Calendar, Target } from 'lucide-react';
 import { useExpenseStore } from '../store/ExpenseStore';
 
 const currencies = [
@@ -18,6 +18,8 @@ export default function Onboarding() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [budgetResetInterval, setBudgetResetInterval] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [budgetResetDay, setBudgetResetDay] = useState(1);
   const { updateUser } = useExpenseStore();
 
   const handleComplete = () => {
@@ -26,7 +28,9 @@ export default function Onboarding() {
       currency: selectedCurrency,
       emailConnected: true,
       notificationsEnabled: true,
-      onboardingComplete: true
+      onboardingComplete: true,
+      budgetResetInterval,
+      budgetResetDay
     });
   };
 
@@ -75,6 +79,43 @@ export default function Onboarding() {
               <div className="text-slate-400 text-sm">{currency.name}</div>
             </button>
           ))}
+        </div>
+      )
+    },
+    {
+      title: "Set Your Budget Cycle",
+      subtitle: "Choose how often your budget resets",
+      icon: Calendar,
+      content: (
+        <div className="space-y-6">
+          <div>
+            <label className="block text-slate-400 text-sm mb-2 font-medium">Reset Cycle</label>
+            <select
+              value={budgetResetInterval}
+              onChange={(e) => setBudgetResetInterval(e.target.value as any)}
+              className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+            >
+              <option value="weekly">Weekly (Every 7 days)</option>
+              <option value="monthly">Monthly (Every month on a set day)</option>
+              <option value="quarterly">Quarterly (Every 90 days)</option>
+              <option value="yearly">Yearly (Every 365 days)</option>
+            </select>
+          </div>
+
+          {budgetResetInterval === 'monthly' && (
+            <div>
+              <label className="block text-slate-400 text-sm mb-2 font-medium">Reset Day of Month (e.g. Pay Day)</label>
+              <input
+                type="number"
+                min="1"
+                max="28"
+                placeholder="Day of Month (1 - 28)"
+                value={budgetResetDay}
+                onChange={(e) => setBudgetResetDay(Math.max(1, Math.min(28, parseInt(e.target.value) || 1)))}
+                className="w-full px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+              />
+            </div>
+          )}
         </div>
       )
     },

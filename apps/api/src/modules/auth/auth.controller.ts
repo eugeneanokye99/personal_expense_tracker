@@ -34,8 +34,9 @@ export class AuthController {
 
   static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (token) await AuthService.blacklistToken(token);
+      if (req.supabase) {
+        await req.supabase.auth.signOut();
+      }
       res.clearCookie('refresh_token').json({ success: true, message: 'Logged out' });
     } catch (err) {
       next(err);

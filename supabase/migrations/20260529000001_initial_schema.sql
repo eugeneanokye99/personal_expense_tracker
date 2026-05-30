@@ -23,6 +23,8 @@ CREATE TABLE users (
   -- All budgets inherit this by default but can override per-budget
   budget_reset_day    INTEGER NOT NULL DEFAULT 1
                         CHECK (budget_reset_day BETWEEN 1 AND 28),
+  budget_reset_interval TEXT NOT NULL DEFAULT 'monthly'
+                        CHECK (budget_reset_interval IN ('weekly', 'monthly', 'quarterly', 'yearly')),
   onboarding_complete BOOLEAN NOT NULL DEFAULT FALSE,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -87,6 +89,8 @@ CREATE TABLE budgets (
   -- reset_day: day of month this budget resets (inherits from user.budget_reset_day by default)
   reset_day     INTEGER NOT NULL DEFAULT 1
                   CHECK (reset_day BETWEEN 1 AND 28),
+  reset_interval TEXT NOT NULL DEFAULT 'monthly'
+                  CHECK (reset_interval IN ('weekly', 'monthly', 'quarterly', 'yearly')),
   -- last_reset_at: start of the CURRENT budget period
   -- Expenses dated before this are in a past period (viewable in Insights / budget_history)
   last_reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -123,6 +127,7 @@ RETURNS TABLE (
   category      TEXT,
   limit_amount  NUMERIC,
   reset_day     INTEGER,
+  reset_interval TEXT,
   last_reset_at TIMESTAMPTZ,
   created_at    TIMESTAMPTZ,
   spent         NUMERIC
@@ -135,6 +140,7 @@ BEGIN
     b.category,
     b.limit_amount,
     b.reset_day,
+    b.reset_interval,
     b.last_reset_at,
     b.created_at,
     COALESCE(

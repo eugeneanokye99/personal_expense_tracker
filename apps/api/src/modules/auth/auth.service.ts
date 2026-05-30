@@ -1,9 +1,6 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { supabase } from '../../config/database';
 import { redis } from '../../config/redis';
-import { env } from '../../config/env';
 import { UsersRepository } from '../users/users.repository';
 import { AppError } from '../../middleware/errorHandler';
 import { getGmailOAuthClient, exchangeCodeForTokens, encryptToken } from './gmail.oauth';
@@ -12,61 +9,65 @@ import type { RegisterDto, LoginResult } from '../../../../../packages/shared/ty
 
 export class AuthService {
   static async register(dto: RegisterDto): Promise<{ user: object }> {
-    const existing = await UsersRepository.findByEmail(dto.email);
+    const existing = await UsersRepository.findByEmail(supabase, dto.email);
     if (existing) throw new AppError('Email already registered', 409);
 
-    const passwordHash = await bcrypt.hash(dto.password, 12);
-    const user = await UsersRepository.create({
+    // Create user in Supabase Auth system
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email: dto.email,
+      password: dto.password,
+      email_confirm: true,
+    });
+
+    if (authError || !authUser.user) {
+      throw new AppError(authError?.message || 'Failed to register user in Auth engine', 500);
+    }
+
+    // Persist profile metadata in our public users table
+    const user = await UsersRepository.create(supabase, {
+      id: authUser.user.id,
       email: dto.email,
       displayName: dto.displayName,
-      passwordHash,
       budgetResetDay: dto.payDay ?? 1,
+      budgetResetInterval: dto.budgetResetInterval ?? 'monthly',
+      phoneNumber: dto.phoneNumber,
     });
 
     return { user: { id: user.id, email: user.email, displayName: user.display_name } };
   }
 
   static async login(dto: { email: string; password: string }): Promise<LoginResult> {
-    const user = await UsersRepository.findByEmail(dto.email);
-    if (!user) throw new AppError('Invalid credentials', 401);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: dto.email,
+      password: dto.password,
+    });
 
-    const valid = await bcrypt.compare(dto.password, user.password_hash ?? '');
-    if (!valid) throw new AppError('Invalid credentials', 401);
+    if (error || !data.session) {
+      throw new AppError(error?.message || 'Invalid credentials', 401);
+    }
 
-    const jti = crypto.randomUUID();
-    const accessToken = jwt.sign({ sub: user.id, jti }, env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ sub: user.id, jti }, env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
-
-    await redis.set(`refresh_token:${user.id}:${jti}`, '1', 'EX', 30 * 24 * 60 * 60);
+    const user = await UsersRepository.findById(supabase, data.session.user.id);
+    if (!user) {
+      throw new AppError('User profile not found', 404);
+    }
 
     return {
-      accessToken,
-      refreshToken,
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
       user: { id: user.id, email: user.email, displayName: user.display_name },
     };
   }
 
-  static async blacklistToken(token: string): Promise<void> {
-    const decoded = jwt.decode(token) as { jti?: string; exp?: number } | null;
-    if (!decoded?.jti || !decoded.exp) return;
-    const ttl = decoded.exp - Math.floor(Date.now() / 1000);
-    if (ttl > 0) await redis.set(`jwt:blacklist:${decoded.jti}`, '1', 'EX', ttl);
-  }
-
   static async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
-    let decoded: { sub: string; jti: string };
-    try {
-      decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as { sub: string; jti: string };
-    } catch {
-      throw new AppError('Invalid or expired refresh token', 401);
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (error || !data.session) {
+      throw new AppError(error?.message || 'Invalid or expired refresh token', 401);
     }
 
-    const exists = await redis.exists(`refresh_token:${decoded.sub}:${decoded.jti}`);
-    if (!exists) throw new AppError('Refresh token revoked', 401);
-
-    const newJti = crypto.randomUUID();
-    const accessToken = jwt.sign({ sub: decoded.sub, jti: newJti }, env.JWT_SECRET, { expiresIn: '15m' });
-    return { accessToken };
+    return { accessToken: data.session.access_token };
   }
 
   static async getGmailOAuthUrl(userId: string): Promise<string> {
