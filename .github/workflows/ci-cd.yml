@@ -11,6 +11,11 @@ on:
       - main
       - develop
 
+# Prevent overlapping runs
+concurrency:
+  group: spendwisely-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '9'
@@ -21,8 +26,9 @@ env:
 jobs:
   # ── JOB 1: Backend Lint & Typecheck ───────────────────────
   lint-and-typecheck-api:
-    name: API: Lint & Typecheck
+    name: "API: Lint & Typecheck"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,14 +46,18 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Lint API
+        run: pnpm --filter @spendwisely/api lint
 
       - name: Type check — API
         run: pnpm --filter @spendwisely/api typecheck
 
   # ── JOB 2: Frontend Lint & Build Check ────────────────────
   lint-and-typecheck-web:
-    name: Web: Lint & Build Check
+    name: "Web: Lint & Build Check"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,14 +76,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Check — Web
-        run: pnpm --filter @spendwisely/web run build --mode development
-        # Vite build in dev mode checks for compile errors without minification
+      - name: Build Check — Web (Production Build)
+        run: pnpm --filter @spendwisely/web build
 
   # ── JOB 3: Backend Tests (with Live Redis & RabbitMQ) ─────
   test-api:
-    name: API: Integration Tests
+    name: "API: Integration Tests"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: lint-and-typecheck-api
     services:
       redis:
@@ -139,8 +149,9 @@ jobs:
 
   # ── JOB 4: Frontend Tests ──────────────────────────────────
   test-web:
-    name: Web: Frontend Tests
+    name: "Web: Frontend Tests"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: lint-and-typecheck-web
     steps:
       - name: Checkout
@@ -163,10 +174,11 @@ jobs:
       - name: Run Web tests
         run: pnpm --filter @spendwisely/web test --if-present
 
-  # ── JOB 5: Push DB Migrations (only on push to main) ───────
+  # ── JOB 5: Run DB Migrations (only on push to main) ───────
   migrate:
-    name: DB: Push Supabase Migrations
+    name: "DB: Run Supabase Migrations"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [test-api, test-web]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
@@ -182,35 +194,37 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+          supabase migration up --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
 
   # ── JOB 6: Deploy API Server (only on push to main) ────────
   deploy-api:
     name: Deploy API → Render
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Trigger Render API Deploy Hook
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}"
+          curl --fail --silent --show-error -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}"
 
   # ── JOB 7: Deploy Worker (only on push to main) ───────────
   deploy-worker:
     name: Deploy Worker → Render
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Trigger Render Worker Deploy Hook
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}"
+          curl --fail --silent --show-error -X POST "${{ secrets.RENDER_DEPLOY_HOOK_WORKER }}"
 
   # ── JOB 8: Deploy Frontend (only on push to main) ──────────
   deploy-web:
     name: Deploy Web → Vercel
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: migrate
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
@@ -231,16 +245,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
-        run: pnpm --filter @spendwisely/web build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: .
-          vercel-args: '--prod'
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
