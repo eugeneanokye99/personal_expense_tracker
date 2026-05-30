@@ -24,7 +24,8 @@ export class UsersService {
   }
 
   private static sanitize(user: Record<string, unknown>) {
-    const { password_hash, ...safe } = user;
+    const safe = { ...user };
+    delete safe.password_hash;
     return safe;
   }
 }

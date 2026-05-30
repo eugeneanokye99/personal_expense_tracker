@@ -48,12 +48,13 @@ export async function budgetResetWorker(msg: object): Promise<void> {
         // Reset if at least 7 days have elapsed since last reset
         shouldReset = diffDays >= 7;
         break;
-      case 'monthly':
+      case 'monthly': {
         // Reset if we are on the reset_day and it hasn't been reset in this calendar month cycle
         const isSameDay = todayDay === budget.reset_day;
         const differentMonth = lastReset.getMonth() !== todayDate.getMonth() || lastReset.getFullYear() !== todayDate.getFullYear();
         shouldReset = isSameDay && (diffDays >= 20 || differentMonth);
         break;
+      }
       case 'quarterly':
         // Reset if at least 90 days have elapsed since last reset
         shouldReset = diffDays >= 90;

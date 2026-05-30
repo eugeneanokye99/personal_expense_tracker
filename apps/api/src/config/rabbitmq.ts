@@ -1,4 +1,4 @@
-import amqplib, { Channel, Connection } from 'amqplib';
+import amqplib, { Channel } from 'amqplib';
 import { env } from './env';
 
 let connection: any = null;
