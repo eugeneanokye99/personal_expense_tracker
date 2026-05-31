@@ -125,6 +125,9 @@ jobs:
       GOOGLE_CALLBACK_URL: http://localhost:3000/api/v1/auth/gmail/callback
       ARKESEL_API_KEY: placeholder
       ARKESEL_SENDER_ID: SpendWisely
+      SMTP_HOST: localhost
+      SMTP_USER: placeholder@spendwisely.com
+      SMTP_PASS: placeholder_password
 
     steps:
       - name: Checkout

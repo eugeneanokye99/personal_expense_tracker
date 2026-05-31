@@ -39,10 +39,10 @@ const envSchema = z.object({
   ARKESEL_SENDER_ID: z.string().default('SpendWisely'),
 
   // SMTP Email Settings
-  SMTP_HOST: z.string().min(1),
+  SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().default(587),
-  SMTP_USER: z.string().min(1),
-  SMTP_PASS: z.string().min(1),
+  SMTP_USER: z.string().default('placeholder@spendwisely.com'),
+  SMTP_PASS: z.string().default('placeholder_password'),
   SMTP_SECURE: z.preprocess((v) => v === 'true' || v === true, z.boolean()).default(false),
   SMTP_FROM: z.string().default('SpendWisely <noreply@spendwisely.com>'),
 });
