@@ -1,2 +1,7 @@
 packages:
-  - '.'
+  - '.' # root (existing web app — will move to apps/web/ in Phase 4)
+  - 'apps/*' # apps/api
+  - 'packages/*' # packages/shared
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true

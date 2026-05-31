@@ -5,10 +5,23 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import Analytics from './components/Analytics';
 import Layout from './components/Layout';
+import Login from './components/Login';
 import NotificationManager from './components/NotificationManager';
 
 function AppRoutes() {
-  const { user } = useExpenseStore();
+  const { user, isAuthenticated, isLoading } = useExpenseStore();
+
+  if (isLoading) {
+    return (
+      <div className="size-full flex items-center justify-center bg-slate-950">
+        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   if (!user.onboardingComplete) {
     return <Onboarding />;

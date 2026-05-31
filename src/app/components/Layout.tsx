@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Home, BarChart3, Plus, X } from 'lucide-react';
+import { Home, BarChart3, Plus, X, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AddExpenseModal from './AddExpenseModal';
+import { useExpenseStore } from '../store/ExpenseStore';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const { logout } = useExpenseStore();
 
   const tabs = [
     { path: '/', icon: Home, label: 'Home' },
@@ -24,29 +26,40 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent">
-              SpendWise
+              SpendWisely
             </h1>
             <p className="text-slate-400 text-sm mt-1">Track with personality</p>
           </div>
-          <div className="flex gap-2 bg-slate-800/50 rounded-2xl p-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = location.pathname === tab.path;
-              return (
-                <button
-                  key={tab.path}
-                  onClick={() => navigate(tab.path)}
-                  className={`px-6 py-3 rounded-xl flex items-center gap-2 transition-all ${
-                    isActive
-                      ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-4">
+            <div className="flex gap-2 bg-slate-800/50 rounded-2xl p-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = location.pathname === tab.path;
+                return (
+                  <button
+                    key={tab.path}
+                    onClick={() => navigate(tab.path)}
+                    className={`px-6 py-3 rounded-xl flex items-center gap-2 transition-all ${
+                      isActive
+                        ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="font-medium">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={logout}
+              className="px-5 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 text-red-400 hover:text-red-300 rounded-xl flex items-center gap-2 transition-all font-semibold text-sm cursor-pointer"
+              title="Log Out"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out</span>
+            </button>
           </div>
         </div>
       </header>
