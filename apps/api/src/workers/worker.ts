@@ -26,7 +26,7 @@ async function startWorkers(): Promise<void> {
 
 startWorkers().catch((err) => {
   console.error('❌ Worker startup failed:', err);
-  process.exit(1);
+  throw err;
 });
 
 // Graceful shutdown
