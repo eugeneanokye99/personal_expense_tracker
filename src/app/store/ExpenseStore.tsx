@@ -115,11 +115,26 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (err.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
           try {
-            await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
-            return api(originalRequest);
+            const refreshRes = await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+            if (refreshRes.data?.success && refreshRes.data?.data?.accessToken) {
+              const accessToken = refreshRes.data.data.accessToken;
+              api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+              originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+              return api(originalRequest);
+            }
           } catch (refreshErr) {
             setIsAuthenticated(false);
-            setUser(prev => ({ ...prev, onboardingComplete: false }));
+            setUser({
+              name: '',
+              email: '',
+              currency: 'GHS',
+              emailConnected: false,
+              notificationsEnabled: false,
+              onboardingComplete: false,
+              budgetResetInterval: 'monthly',
+              budgetResetDay: 1,
+              phoneNumber: '',
+            });
           }
         }
         return Promise.reject(err);
@@ -196,7 +211,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const res = await api.post('/auth/login', { email, password });
-      if (res.data?.success) {
+      if (res.data?.success && res.data?.data?.accessToken) {
+        const accessToken = res.data.data.accessToken;
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         setIsAuthenticated(true);
         toast.success('Logged in successfully!');
         return true;
@@ -242,6 +259,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (err) {
       console.error('Logout request failed:', err);
     } finally {
+      delete api.defaults.headers.common['Authorization'];
       setIsAuthenticated(false);
       setUser({
         name: '',

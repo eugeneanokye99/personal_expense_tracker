@@ -135,6 +135,7 @@ export interface UpdateUserDto {
   budgetResetDay?: number;
   budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   phoneNumber?: string;
+  onboardingComplete?: boolean;
 }
 
 export interface CreateExpenseDto {

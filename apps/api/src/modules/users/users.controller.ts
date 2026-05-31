@@ -14,7 +14,7 @@ export class UsersController {
 
   static async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const allowed = ['displayName', 'currency', 'notificationMode', 'alertFrequency', 'budgetResetDay', 'phoneNumber', 'budgetResetInterval'];
+      const allowed = ['displayName', 'currency', 'notificationMode', 'alertFrequency', 'budgetResetDay', 'phoneNumber', 'budgetResetInterval', 'onboardingComplete'];
       const updates = Object.fromEntries(
         Object.entries(req.body).filter(([key]) => allowed.includes(key))
       );

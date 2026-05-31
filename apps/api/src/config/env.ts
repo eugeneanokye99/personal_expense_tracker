@@ -1,4 +1,9 @@
+import dotenv from 'dotenv';
+import path from 'path';
 import { z } from 'zod';
+
+// Load .env from the package root directory (apps/api/.env)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const envSchema = z.object({
   // Server

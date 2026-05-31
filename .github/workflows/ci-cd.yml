@@ -193,8 +193,11 @@ jobs:
       - name: Run migrations on production database
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
-          supabase migration up --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+          ENCODED_PASSWORD=$(echo -n "$DB_PASSWORD" | jq -s -R -r @uri)
+          supabase migration up --db-url "postgresql://postgres.$PROJECT_REF:$ENCODED_PASSWORD@aws-1-us-east-1.pooler.supabase.com:5432/postgres"
 
   # ── JOB 6: Deploy API Server (only on push to main) ────────
   deploy-api:

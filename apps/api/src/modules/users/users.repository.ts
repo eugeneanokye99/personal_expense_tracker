@@ -49,6 +49,7 @@ export class UsersRepository {
     if (dto.budgetResetDay !== undefined) mapped.budget_reset_day = dto.budgetResetDay;
     if (dto.budgetResetInterval !== undefined) mapped.budget_reset_interval = dto.budgetResetInterval;
     if (dto.phoneNumber !== undefined) mapped.phone_number = dto.phoneNumber;
+    if (dto.onboardingComplete !== undefined) mapped.onboarding_complete = dto.onboardingComplete;
 
     const { data, error } = await client
       .from('users')
