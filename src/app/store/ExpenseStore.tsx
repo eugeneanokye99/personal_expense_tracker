@@ -31,12 +31,24 @@ export interface User {
   budgetResetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   budgetResetDay?: number;
   phoneNumber?: string;
+  selectedChannels?: string[];
+}
+
+export interface PendingEmail {
+  id: string;
+  amount: number;
+  merchant: string;
+  category: string;
+  channel: string;
+  confidence: number;
+  date: Date;
 }
 
 interface ExpenseContextType {
   user: User;
   expenses: Expense[];
   budgets: Budget[];
+  pendingEmails: PendingEmail[];
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -51,6 +63,8 @@ interface ExpenseContextType {
   getSpentByCategory: (category: string) => number;
   getCategoryPercentage: (category: string) => number;
   fetchData: () => Promise<void>;
+  confirmPendingEmail: (id: string, overrides?: { category?: string; merchant?: string; amount?: number }) => Promise<void>;
+  rejectPendingEmail: (id: string) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
@@ -99,10 +113,12 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     budgetResetInterval: 'monthly',
     budgetResetDay: 1,
     phoneNumber: '',
+    selectedChannels: [],
   });
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [pendingEmails, setPendingEmails] = useState<PendingEmail[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -134,6 +150,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
               budgetResetInterval: 'monthly',
               budgetResetDay: 1,
               phoneNumber: '',
+              selectedChannels: [],
             });
           }
         }
@@ -150,6 +167,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const res = await api.get('/users/me');
         if (res.data?.success && res.data?.data) {
           const profile = res.data.data;
+          const savedChannels = localStorage.getItem(`channels_${profile.email}`);
           setUser({
             name: profile.display_name,
             email: profile.email,
@@ -160,6 +178,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
             budgetResetInterval: profile.budget_reset_interval || 'monthly',
             budgetResetDay: profile.budget_reset_day || 1,
             phoneNumber: profile.phone_number,
+            selectedChannels: savedChannels ? JSON.parse(savedChannels) : [],
           });
           setIsAuthenticated(true);
           await fetchData();
@@ -201,6 +220,21 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           spent: Number(b.spent || 0),
           resetInterval: b.resetInterval || 'monthly',
           resetDay: b.resetDay,
+        })));
+      }
+
+      // 3. Fetch Pending Email Transactions
+      const pendingRes = await api.get('/email/pending');
+      if (pendingRes.data?.success) {
+        const items = pendingRes.data.data || [];
+        setPendingEmails(items.map((item: any) => ({
+          id: item.id,
+          amount: Number(item.parsed_amount),
+          merchant: item.merchant,
+          category: item.suggested_category,
+          channel: item.channel || 'Email',
+          confidence: Number(item.confidence || 0),
+          date: new Date(item.created_at),
         })));
       }
     } catch (err) {
@@ -271,9 +305,11 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         budgetResetInterval: 'monthly',
         budgetResetDay: 1,
         phoneNumber: '',
+        selectedChannels: [],
       });
       setExpenses([]);
       setBudgets([]);
+      setPendingEmails([]);
       toast.success('Logged out successfully');
     }
   };
@@ -299,13 +335,24 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         payload.phoneNumber = updates.phoneNumber;
       }
 
-      const res = await api.patch('/users/me', payload);
-      if (res.data?.success) {
-        setUser(prev => ({ ...prev, ...updates }));
+      if (updates.selectedChannels !== undefined) {
+        localStorage.setItem(`channels_${user.email}`, JSON.stringify(updates.selectedChannels));
+      }
+
+      const hasDbUpdates = Object.keys(payload).length > 0;
+      if (hasDbUpdates) {
+        const res = await api.patch('/users/me', payload);
+        if (!res.data?.success) {
+          throw new Error('Failed to update remote user profile');
+        }
+      }
+
+      setUser(prev => ({ ...prev, ...updates }));
+      if (hasDbUpdates) {
         toast.success('Profile settings updated!');
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to update settings');
+      toast.error(err.response?.data?.error || err.message || 'Failed to update settings');
     }
   };
 
@@ -383,6 +430,30 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const confirmPendingEmail = async (id: string, overrides?: { category?: string; merchant?: string; amount?: number }) => {
+    try {
+      const res = await api.post(`/email/pending/${id}/confirm`, overrides || {});
+      if (res.data?.success) {
+        toast.success('Expense confirmed!');
+        await fetchData(); // refresh expenses and pending list
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to confirm transaction');
+    }
+  };
+
+  const rejectPendingEmail = async (id: string) => {
+    try {
+      const res = await api.post(`/email/pending/${id}/reject`);
+      if (res.data?.success) {
+        toast.success('Transaction dismissed');
+        await fetchData(); // refresh pending list
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to dismiss transaction');
+    }
+  };
+
   const getTotalSpent = () => {
     return expenses.reduce((sum, e) => sum + e.amount, 0);
   };
@@ -405,6 +476,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         user,
         expenses,
         budgets,
+        pendingEmails,
         isAuthenticated,
         isLoading,
         login,
@@ -418,7 +490,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         getTotalSpent,
         getSpentByCategory,
         getCategoryPercentage,
-        fetchData
+        fetchData,
+        confirmPendingEmail,
+        rejectPendingEmail
       }}
     >
       {children}

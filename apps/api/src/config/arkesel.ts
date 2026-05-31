@@ -43,7 +43,7 @@ export async function sendSms(to: string, message: string): Promise<void> {
  */
 function normaliseGhanaPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('233')) return `+${digits}`;
-  if (digits.startsWith('0')) return `+233${digits.slice(1)}`;
-  return `+233${digits}`;
+  if (digits.startsWith('233')) return digits;
+  if (digits.startsWith('0')) return `233${digits.slice(1)}`;
+  return `233${digits}`;
 }

@@ -1,6 +1,7 @@
 import { supabase } from '../../config/database';
 import { sendSms } from '../../config/arkesel';
 import { publishToQueue } from '../../config/rabbitmq';
+import { sendMail } from '../../config/mailer';
 import { AppError } from '../../middleware/errorHandler';
 import type { NotificationMessage } from '../../../../../packages/shared/types';
 
@@ -62,8 +63,14 @@ export class NotificationsService {
       );
     }
 
-    // 4. TODO: Send email notification via nodemailer/SendGrid
-    // TODO: Send browser push notification via web-push
+    // 4. Send email notification via nodemailer
+    if (user.email) {
+      await sendMail(
+        user.email,
+        msg.payload.title,
+        msg.payload.body
+      ).catch(err => console.error('Nodemailer email dispatch failed:', err.message));
+    }
   }
 
   static async sendDailyReminders(): Promise<{ sentCount: number }> {

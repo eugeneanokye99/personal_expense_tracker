@@ -18,8 +18,8 @@ export class UsersRepository {
       .select('*')
       .eq('id', id)
       .single();
-    if (error) throw new AppError(error.message, 500);
-    return data;
+    if (error && error.code !== 'PGRST116') throw new AppError(error.message, 500);
+    return data || null;
   }
 
   static async create(client: any, dto: CreateUserDto & { id: string }) {

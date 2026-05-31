@@ -37,6 +37,14 @@ const envSchema = z.object({
   // Arkesel SMS Gateway
   ARKESEL_API_KEY: z.string().min(1),
   ARKESEL_SENDER_ID: z.string().default('SpendWisely'),
+
+  // SMTP Email Settings
+  SMTP_HOST: z.string().min(1),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().min(1),
+  SMTP_PASS: z.string().min(1),
+  SMTP_SECURE: z.preprocess((v) => v === 'true' || v === true, z.boolean()).default(false),
+  SMTP_FROM: z.string().default('SpendWisely <noreply@spendwisely.com>'),
 });
 
 function parseEnv() {

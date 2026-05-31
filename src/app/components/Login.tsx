@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { useExpenseStore } from '../store/ExpenseStore';
-import { Sparkles, Mail, Lock, User as UserIcon, Calendar, Phone } from 'lucide-react';
+import { Sparkles, Mail, Lock, User as UserIcon, Phone } from 'lucide-react';
 
 export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
@@ -9,7 +9,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [payDay, setPayDay] = useState(1);
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useExpenseStore();
@@ -19,7 +18,7 @@ export default function Login() {
     setLoading(true);
     try {
       if (isRegister) {
-        await register(email, password, displayName, payDay, phoneNumber);
+        await register(email, password, displayName, undefined, phoneNumber, undefined);
       } else {
         await login(email, password);
       }
@@ -71,23 +70,6 @@ export default function Login() {
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="E.g., 0244123456"
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-850 border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 text-sm font-medium mb-1.5">Income Day (Budget Reset Day)</label>
-                <div className="relative">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="number"
-                    min={1}
-                    max={28}
-                    required
-                    value={payDay}
-                    onChange={(e) => setPayDay(parseInt(e.target.value))}
-                    placeholder="Day of the month (1-28)"
                     className="w-full pl-12 pr-4 py-3.5 bg-slate-850 border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
                   />
                 </div>

@@ -5,9 +5,9 @@ import { AppError } from '../../middleware/errorHandler';
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, password, displayName, payDay } = req.body;
+      const { email, password, displayName, payDay, phoneNumber, budgetResetInterval } = req.body;
       if (!email || !password || !displayName) throw new AppError('Missing required fields', 400);
-      const result = await AuthService.register({ email, password, displayName, payDay });
+      const result = await AuthService.register({ email, password, displayName, payDay, phoneNumber, budgetResetInterval });
       res.status(201).json({ success: true, data: result });
     } catch (err) {
       next(err);

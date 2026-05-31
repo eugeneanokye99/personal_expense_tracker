@@ -33,6 +33,17 @@ export class AuthService {
       phoneNumber: dto.phoneNumber,
     });
 
+    // Trigger Welcome Email via notification.queue
+    await publishToQueue('notification.queue', {
+      userId: user.id,
+      type: 'transactional',
+      trigger: 'welcome_email',
+      payload: {
+        title: `Welcome to SpendWisely, ${user.display_name}! 🎉`,
+        body: `We are absolutely thrilled to have you join us! SpendWisely helps you track your mobile money receipts, manage category budgets, and optimize your financial habits seamlessly. Let's start tracking!`,
+      },
+    }).catch(err => console.error('Failed to queue welcome email:', err));
+
     return { user: { id: user.id, email: user.email, displayName: user.display_name } };
   }
 
