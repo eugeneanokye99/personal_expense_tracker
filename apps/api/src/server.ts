@@ -70,8 +70,10 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // ── Start ──────────────────────────────────────────────────────────────────
-app.listen(env.PORT, () => {
-  console.log(`🚀 SpendWisely API running on port ${env.PORT} [${env.NODE_ENV}]`);
-});
+if (process.env.NODE_ENV !== 'test' && env.NODE_ENV !== 'test') {
+  app.listen(env.PORT, () => {
+    console.log(`🚀 SpendWisely API running on port ${env.PORT} [${env.NODE_ENV}]`);
+  });
+}
 
 export default app;

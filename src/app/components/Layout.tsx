@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Home, BarChart3, Plus, LogOut } from 'lucide-react';
+import { Home, BarChart3, Plus, LogOut, Settings } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import AddExpenseModal from './AddExpenseModal';
 import { useExpenseStore } from '../store/ExpenseStore';
@@ -17,7 +17,8 @@ export default function Layout({ children }: LayoutProps) {
 
   const tabs = [
     { path: '/', icon: Home, label: 'Home' },
-    { path: '/analytics', icon: BarChart3, label: 'Analytics' }
+    { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { path: '/settings', icon: Settings, label: 'Settings' }
   ];
 
   return (
@@ -67,7 +68,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </header>
-
+ 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto pb-24 md:pb-6">
         {children}
@@ -84,7 +85,7 @@ export default function Layout({ children }: LayoutProps) {
       </motion.button>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/80 backdrop-blur-lg border-t border-slate-900/40 px-8 py-3 flex items-center justify-around z-40 pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/80 backdrop-blur-lg border-t border-slate-900/40 px-6 py-3 flex items-center justify-between z-40 pb-safe">
         {/* Home Tab */}
         <button
           onClick={() => navigate('/')}
@@ -96,15 +97,6 @@ export default function Layout({ children }: LayoutProps) {
           <span className="text-[10px] font-medium">Home</span>
         </button>
 
-        {/* Floating Plus Button */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setShowAddExpense(true)}
-          className="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/30 flex items-center justify-center -translate-y-5 border-4 border-slate-950"
-        >
-          <Plus className="w-6 h-6 text-white" />
-        </motion.button>
-
         {/* Analytics Tab */}
         <button
           onClick={() => navigate('/analytics')}
@@ -114,6 +106,35 @@ export default function Layout({ children }: LayoutProps) {
         >
           <BarChart3 className="w-5 h-5" />
           <span className="text-[10px] font-medium">Analytics</span>
+        </button>
+
+        {/* Floating Plus Button */}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setShowAddExpense(true)}
+          className="w-12 h-12 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/30 flex items-center justify-center -translate-y-5 border-4 border-slate-950 flex-shrink-0"
+        >
+          <Plus className="w-6 h-6 text-white" />
+        </motion.button>
+
+        {/* Settings Tab */}
+        <button
+          onClick={() => navigate('/settings')}
+          className={`flex flex-col items-center gap-1 transition-all ${
+            location.pathname === '/settings' ? 'text-violet-400' : 'text-slate-400'
+          }`}
+        >
+          <Settings className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Settings</span>
+        </button>
+
+        {/* Logout Tab */}
+        <button
+          onClick={logout}
+          className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-400 transition-all cursor-pointer"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Log Out</span>
         </button>
       </div>
 

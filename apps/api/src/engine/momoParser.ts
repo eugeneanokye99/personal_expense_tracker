@@ -20,7 +20,8 @@ export class MomoParser {
 
     if (mimeType.includes('pdf')) {
       try {
-        const parsedPdf = await (pdfParse as any)(fileBuffer);
+        const parseFn = typeof pdfParse === 'function' ? pdfParse : (pdfParse as any).default;
+        const parsedPdf = await parseFn(fileBuffer);
         rawText = parsedPdf.text;
       } catch (err) {
         console.error('Failed to extract text from PDF statement:', err);

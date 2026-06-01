@@ -14,6 +14,7 @@ export interface Expense {
 }
 
 export interface Budget {
+  id?: string;
   category: string;
   limit: number;
   spent: number;
@@ -58,6 +59,9 @@ interface ExpenseContextType {
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setBudget: (category: string, limit: number, resetInterval?: 'weekly' | 'monthly' | 'quarterly' | 'yearly', resetDay?: number) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
+  connectGmail: () => Promise<void>;
+  scanInbox: () => Promise<void>;
   uploadStatement: (file: File) => Promise<boolean>;
   getTotalSpent: () => number;
   getSpentByCategory: (category: string) => number;
@@ -215,6 +219,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (budgetsRes.data?.success) {
         const items = budgetsRes.data.data || [];
         setBudgets(items.map((b: any) => ({
+          id: b.id,
           category: b.category,
           limit: Number(b.limitAmount),
           spent: Number(b.spent || 0),
@@ -248,6 +253,26 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (res.data?.success && res.data?.data?.accessToken) {
         const accessToken = res.data.data.accessToken;
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        
+        // Fetch profile immediately to populate state before transition
+        const profileRes = await api.get('/users/me');
+        if (profileRes.data?.success && profileRes.data?.data) {
+          const profile = profileRes.data.data;
+          const savedChannels = localStorage.getItem(`channels_${profile.email}`);
+          setUser({
+            name: profile.display_name,
+            email: profile.email,
+            currency: profile.currency || 'GHS',
+            emailConnected: true,
+            notificationsEnabled: profile.alert_frequency !== 'off',
+            onboardingComplete: profile.onboarding_complete,
+            budgetResetInterval: profile.budget_reset_interval || 'monthly',
+            budgetResetDay: profile.budget_reset_day || 1,
+            phoneNumber: profile.phone_number,
+            selectedChannels: savedChannels ? JSON.parse(savedChannels) : [],
+          });
+        }
+
         setIsAuthenticated(true);
         toast.success('Logged in successfully!');
         return true;
@@ -408,6 +433,41 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const deleteBudget = async (id: string) => {
+    try {
+      const res = await api.delete(`/budgets/${id}`);
+      if (res.data?.success) {
+        setBudgets(prev => prev.filter(b => b.id !== id));
+        toast.success('Budget deleted successfully');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to delete budget');
+    }
+  };
+
+  const connectGmail = async () => {
+    try {
+      const res = await api.get('/auth/gmail');
+      if (res.data?.success && res.data?.data?.authUrl) {
+        window.location.href = res.data.data.authUrl;
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to initiate Gmail OAuth');
+    }
+  };
+
+  const scanInbox = async () => {
+    try {
+      const res = await api.post('/email/scan');
+      if (res.data?.success) {
+        toast.success('Inbox scan triggered! Checking for new receipts...');
+        await fetchData(); // refresh pending emails list
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to trigger inbox scan');
+    }
+  };
+
   const uploadStatement = async (file: File): Promise<boolean> => {
     const formData = new FormData();
     formData.append('statement', file);
@@ -486,6 +546,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addExpense,
         deleteExpense,
         setBudget,
+        deleteBudget,
+        connectGmail,
+        scanInbox,
         uploadStatement,
         getTotalSpent,
         getSpentByCategory,

@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, Store, AlertCircle, Brain, Settings } from 'lucide-react';
 import { useExpenseStore, CATEGORIES } from '../store/ExpenseStore';
 import BudgetSettings from './BudgetSettings';
+import { format } from 'date-fns';
 
 const CATEGORY_COLORS = {
   'Food & Dining': '#8b5cf6',
@@ -49,13 +50,35 @@ export default function Analytics() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
 
-  const monthlyData = [
-    { month: 'Jan', amount: 2340 },
-    { month: 'Feb', amount: 2890 },
-    { month: 'Mar', amount: 2150 },
-    { month: 'Apr', amount: 3200 },
-    { month: 'May', amount: getTotalSpent() }
-  ];
+  // Generate the last 5 months dynamically based on real expenses
+  const getMonthlyTrend = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const result = [];
+    const now = new Date();
+    
+    // We generate the last 5 months ending with the current month
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = months[d.getMonth()];
+      const year = d.getFullYear();
+      
+      // Calculate total spent in this specific month and year
+      const totalForMonth = expenses
+        .filter(e => {
+          const expenseDate = new Date(e.date);
+          return expenseDate.getMonth() === d.getMonth() && expenseDate.getFullYear() === year;
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
+        
+      result.push({
+        month: monthName,
+        amount: Number(totalForMonth.toFixed(2))
+      });
+    }
+    return result;
+  };
+
+  const monthlyData = getMonthlyTrend();
 
   const merchantTotals = expenses.reduce((acc, expense) => {
     acc[expense.merchant] = (acc[expense.merchant] || 0) + expense.amount;
@@ -73,7 +96,7 @@ export default function Analytics() {
 
     const summaries = [
       `You've spent ${currencySymbol}${total.toFixed(2)} this month. Your biggest category is ${topCategory?.name} at ${currencySymbol}${topCategory?.value.toFixed(2)}. Daily average is ${currencySymbol}${avgDaily.toFixed(2)}. Keep an eye on ${topCategory?.name} spending!`,
-      `May spending: ${currencySymbol}${total.toFixed(2)}. ${topCategory?.name} is your top expense. You're averaging ${currencySymbol}${avgDaily.toFixed(2)} per day. Not bad, human.`,
+      `${format(new Date(), 'MMMM')} spending: ${currencySymbol}${total.toFixed(2)}. ${topCategory?.name} is your top expense. You're averaging ${currencySymbol}${avgDaily.toFixed(2)} per day. Not bad, human.`,
       `Total damage: ${currencySymbol}${total.toFixed(2)} this month. ${topCategory?.name} is eating most of your wallet at ${((topCategory?.value || 0) / total * 100).toFixed(1)}%. Pro tip: maybe ease up there?`
     ];
 
