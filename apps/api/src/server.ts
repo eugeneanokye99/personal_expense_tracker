@@ -45,6 +45,15 @@ app.get('/health', (_req, res) => {
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 const V1 = '/api/v1';
+
+app.get(V1, (_req, res) => {
+  res.json({ status: 'ok', message: 'Welcome to the SpendWisely API V1', ts: new Date().toISOString() });
+});
+
+app.get(`${V1}/health`, (_req, res) => {
+  res.json({ status: 'ok', app: 'SpendWisely API V1', ts: new Date().toISOString() });
+});
+
 app.use(`${V1}/auth`, authRoutes);
 app.use(`${V1}/users`, usersRoutes);
 app.use(`${V1}/expenses`, expensesRoutes);
