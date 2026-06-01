@@ -81,17 +81,17 @@ export default function Analytics() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Analytics</h2>
-          <p className="text-slate-400">Deep dive into your spending patterns</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2">Analytics</h2>
+          <p className="text-slate-400 text-sm">Deep dive into your spending patterns</p>
         </div>
         <button
           onClick={() => setShowBudgetSettings(!showBudgetSettings)}
-          className="px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white rounded-xl flex items-center gap-2 transition-colors"
+          className="w-full sm:w-auto px-5 py-3 sm:px-6 bg-violet-500 hover:bg-violet-600 text-white rounded-xl flex items-center justify-center gap-2 transition-colors text-sm font-medium cursor-pointer"
         >
-          <Settings className="w-5 h-5" />
+          <Settings className="w-4 h-4" />
           Budget Settings
         </button>
       </div>
@@ -187,14 +187,14 @@ export default function Analytics() {
           </h3>
           <div className="space-y-4">
             {topMerchants.map(([merchant, amount], index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <div key={index} className="flex items-center justify-between p-3 sm:p-4 bg-slate-800/50 rounded-xl gap-2 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-white font-medium text-sm">{index + 1}</span>
                   </div>
-                  <span className="text-white font-medium">{merchant}</span>
+                  <span className="text-white font-medium truncate text-sm sm:text-base">{merchant}</span>
                 </div>
-                <span className="text-violet-400 font-semibold">{currencySymbol}{amount.toFixed(2)}</span>
+                <span className="text-violet-400 font-semibold flex-shrink-0 text-sm sm:text-base">{currencySymbol}{amount.toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -248,10 +248,10 @@ export default function Analytics() {
               const status = percentage >= 100 ? 'over' : percentage >= 80 ? 'warning' : 'good';
 
               return (
-                <div key={index} className="p-4 bg-slate-800/50 rounded-xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-white font-medium">{budget.category}</span>
-                    <span className="text-slate-400">
+                <div key={index} className="p-3 sm:p-4 bg-slate-800/50 rounded-xl min-w-0">
+                  <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
+                    <span className="text-white font-medium truncate text-sm sm:text-base">{budget.category}</span>
+                    <span className="text-slate-400 text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
                       {currencySymbol}{budget.spent.toFixed(2)} / {currencySymbol}{budget.limit.toFixed(2)}
                     </span>
                   </div>
