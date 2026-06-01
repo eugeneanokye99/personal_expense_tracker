@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Mail, Bell, Shield, RefreshCw, Check, Sparkles, User, Settings as SettingsIcon } from 'lucide-react';
+import { Mail, Bell, Shield, RefreshCw, Check, Sparkles, User, Trash2, Settings as SettingsIcon } from 'lucide-react';
 import { useExpenseStore } from '../store/ExpenseStore';
 import { toast } from 'sonner';
 import { useLocation } from 'react-router';
 
 export default function Settings() {
-  const { user, updateUser, connectGmail, scanInbox } = useExpenseStore();
+  const { user, updateUser, connectGmail, scanInbox, connectedEmails, disconnectEmail } = useExpenseStore();
   const location = useLocation();
   const [displayName, setDisplayName] = useState(user.name);
   const [currency, setCurrency] = useState(user.currency);
@@ -95,38 +95,68 @@ export default function Settings() {
             </p>
 
             <div className="space-y-4">
+              {/* Linked Accounts Header */}
+              {connectedEmails.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-slate-450 text-xs font-bold uppercase tracking-wider">Connected Accounts ({connectedEmails.length})</h4>
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {connectedEmails.map((account) => (
+                      <div key={account.id} className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 bg-green-500/10 text-green-400 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Check className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">{account.emailAddress}</div>
+                            <div className="text-[10px] text-slate-500 mt-0.5 capitalize">Gmail Scanning Active</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => disconnectEmail(account.id)}
+                          className="p-2 text-slate-405 hover:text-red-500 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                          title="Disconnect email"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Connect Button Card */}
               <div className="p-5 rounded-2xl border border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    user.emailConnected ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-400'
+                    connectedEmails.length > 0 ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-slate-400'
                   }`}>
-                    {user.emailConnected ? <Check className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
+                    <Mail className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-white font-medium truncate text-sm sm:text-base">Google Account Connection</div>
-                    <div className="text-xs text-slate-500 truncate mt-0.5">
-                      {user.emailConnected ? `Linked: ${user.email}` : 'Not connected yet'}
+                    <div className="text-white font-medium text-sm sm:text-base">Google Account Connection</div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {connectedEmails.length > 0 ? `${connectedEmails.length} active email connections` : 'Link your Gmail address to start tracking'}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={connectGmail}
-                    className="flex-1 sm:flex-initial px-5 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:shadow-lg hover:shadow-red-500/20 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    {user.emailConnected ? 'Reconnect Gmail' : 'Connect Gmail'}
-                  </button>
-                </div>
+                <button
+                  onClick={connectGmail}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:shadow-lg hover:shadow-red-500/20 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  {connectedEmails.length > 0 ? 'Connect Another Gmail' : 'Connect Gmail'}
+                </button>
               </div>
 
-              {user.emailConnected && (
+              {/* Sync Card */}
+              {connectedEmails.length > 0 && (
                 <div className="p-5 rounded-2xl border border-slate-800 bg-slate-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-white font-medium text-sm sm:text-base">Sync Inbox Manually</div>
+                    <div className="text-white font-medium text-sm sm:text-base">Sync Inboxes Manually</div>
                     <div className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Force a scan of your Gmail inbox for new MTN MoMo or banking alerts right now.
+                      Force a scan of all connected Gmail accounts for new MTN MoMo or banking alerts right now.
                     </div>
                   </div>
 
@@ -136,7 +166,7 @@ export default function Settings() {
                     className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
                   >
                     <RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} />
-                    {isScanning ? 'Syncing...' : 'Sync Inbox'}
+                    {isScanning ? 'Syncing...' : 'Sync Inboxes'}
                   </button>
                 </div>
               )}

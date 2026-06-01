@@ -22,8 +22,8 @@ export class AuthController {
       res
         .cookie('refresh_token', result.refreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          secure: true,
+          sameSite: 'none',
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         })
         .json({ success: true, data: { accessToken: result.accessToken, user: result.user } });
@@ -37,7 +37,13 @@ export class AuthController {
       if (req.supabase) {
         await req.supabase.auth.signOut();
       }
-      res.clearCookie('refresh_token').json({ success: true, message: 'Logged out' });
+      res
+        .clearCookie('refresh_token', {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'none',
+        })
+        .json({ success: true, message: 'Logged out' });
     } catch (err) {
       next(err);
     }
