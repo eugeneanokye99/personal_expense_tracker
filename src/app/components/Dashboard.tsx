@@ -64,7 +64,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-violet-500/20 rounded-xl border border-violet-500/30 self-start sm:self-auto">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" />
-            <span className="text-violet-300 text-xs sm:text-sm font-medium">May 2026</span>
+            <span className="text-violet-300 text-xs sm:text-sm font-medium">{format(new Date(), 'MMMM yyyy')}</span>
           </div>
         </div>
 

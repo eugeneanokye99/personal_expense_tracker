@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import Analytics from './components/Analytics';
+import Settings from './components/Settings';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import NotificationManager from './components/NotificationManager';
@@ -33,6 +34,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

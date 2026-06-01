@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, DollarSign, Target } from 'lucide-react';
+import { X, DollarSign, Target, Trash2, Edit3 } from 'lucide-react';
 import { useExpenseStore, CATEGORIES } from '../store/ExpenseStore';
 import { toast } from 'sonner';
 
@@ -9,11 +9,19 @@ interface BudgetSettingsProps {
 }
 
 export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
-  const { budgets, setBudget, user } = useExpenseStore();
+  const { budgets, setBudget, deleteBudget, user } = useExpenseStore();
   const [selectedCategory, setSelectedCategory] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
   const [resetInterval, setResetInterval] = useState<'weekly' | 'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [resetDay, setResetDay] = useState('1');
+
+  const handleEdit = (budget: any) => {
+    setSelectedCategory(budget.category);
+    setBudgetAmount(budget.limit.toString());
+    setResetInterval(budget.resetInterval || 'monthly');
+    setResetDay(budget.resetDay?.toString() || '1');
+    toast.info(`Editing budget for ${budget.category}. Modify the values above and click 'Update Budget' to save.`);
+  };
 
   const getCurrencySymbol = (code: string) => {
     const symbols: Record<string, string> = {
@@ -153,9 +161,9 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-violet-500/30 transition-all"
+            className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-violet-500/30 transition-all cursor-pointer"
           >
-            Set Budget
+            {budgets.some(b => b.category === selectedCategory) ? 'Update Budget' : 'Set Budget'}
           </button>
         </div>
       </form>
@@ -175,7 +183,7 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
               return (
                 <div
                   key={index}
-                  className={`p-4 rounded-xl border ${
+                  className={`p-4 rounded-xl border transition-all ${
                     status === 'over'
                       ? 'bg-red-500/10 border-red-500/30'
                       : status === 'warning'
@@ -183,17 +191,43 @@ export default function BudgetSettings({ onClose }: BudgetSettingsProps) {
                       : 'bg-green-500/10 border-green-500/30'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-medium">{budget.category}</span>
-                    <span className={`text-sm ${
-                      status === 'over'
-                        ? 'text-red-400'
-                        : status === 'warning'
-                        ? 'text-amber-400'
-                        : 'text-green-400'
-                    }`}>
-                      {percentage.toFixed(0)}%
-                    </span>
+                  <div className="flex items-start justify-between mb-2 gap-2">
+                    <div className="min-w-0">
+                      <span className="text-white font-medium block truncate">{budget.category}</span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(budget)}
+                        className="p-1 text-slate-400 hover:text-violet-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                        title="Edit budget"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (budget.id) {
+                            deleteBudget(budget.id);
+                          } else {
+                            toast.error("Unable to delete: missing budget ID");
+                          }
+                        }}
+                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                        title="Delete budget"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <span className={`text-sm font-semibold ml-1 ${
+                        status === 'over'
+                          ? 'text-red-400'
+                          : status === 'warning'
+                          ? 'text-amber-400'
+                          : 'text-green-400'
+                      }`}>
+                        {percentage.toFixed(0)}%
+                      </span>
+                    </div>
                   </div>
                   <div className="text-slate-400 text-sm flex items-center justify-between">
                     <span>{currencySymbol}{budget.spent.toFixed(2)} / {currencySymbol}{budget.limit.toFixed(2)}</span>

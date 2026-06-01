@@ -16,7 +16,23 @@ const currencies = [
 const channelsByCurrency: Record<string, { networks: string[], banks: string[] }> = {
   GHS: {
     networks: ['MTN MoMo', 'Telecel Cash', 'AirtelTigo Money'],
-    banks: ['GCB Bank', 'Ecobank', 'Stanbic Bank', 'Absa Bank', 'Consolidated Bank Ghana (CBG)']
+    banks: [
+      'GCB Bank',
+      'Ecobank Ghana',
+      'Fidelity Bank Ghana',
+      'Stanbic Bank',
+      'Absa Bank Ghana',
+      'Standard Chartered Bank',
+      'CalBank',
+      'Zenith Bank Ghana',
+      'Access Bank Ghana',
+      'Consolidated Bank Ghana (CBG)',
+      'Guaranty Trust Bank (GTBank)',
+      'United Bank for Africa (UBA)',
+      'Republic Bank Ghana',
+      'Agricultural Development Bank (ADB)',
+      'First National Bank (FNB)'
+    ]
   },
   USD: {
     networks: ['PayPal', 'Venmo', 'CashApp', 'Apple Pay'],
@@ -35,6 +51,21 @@ const channelsByCurrency: Record<string, { networks: string[], banks: string[] }
     banks: ['Local Bank 1', 'Local Bank 2', 'International Bank']
   }
 };
+
+const digitalServices = [
+  'Spotify',
+  'Netflix',
+  'Apple Music',
+  'YouTube Premium',
+  'Amazon Prime',
+  'Bolt / Uber',
+  'Steam',
+  'PlayStation Network',
+  'Xbox Live',
+  'Google Play Store',
+  'Apple App Store',
+  'ChatGPT Plus / OpenAI'
+];
 
 export default function Onboarding() {
   const [step, setStep] = useState(0);
@@ -165,6 +196,35 @@ export default function Onboarding() {
                     }`}
                   >
                     <span className="text-sm truncate mr-1">{bank}</span>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs ${
+                      isSelected ? 'border-violet-500 bg-violet-500 text-white' : 'border-slate-700'
+                    }`}>
+                      {isSelected && '✓'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Digital Subscriptions & Services Section */}
+          <div>
+            <h4 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2.5">Digital Subscriptions & Services</h4>
+            <div className="grid grid-cols-2 gap-2.5">
+              {digitalServices.map((service) => {
+                const isSelected = selectedChannels.includes(service);
+                return (
+                  <button
+                    key={service}
+                    type="button"
+                    onClick={() => toggleChannel(service)}
+                    className={`p-4 rounded-xl border transition-all text-left flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-violet-500/10 border-violet-500 text-white font-semibold'
+                        : 'bg-slate-800/40 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-sm">{service}</span>
                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs ${
                       isSelected ? 'border-violet-500 bg-violet-500 text-white' : 'border-slate-700'
                     }`}>
