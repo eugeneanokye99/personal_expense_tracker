@@ -45,6 +45,14 @@ export interface PendingEmail {
   date: Date;
 }
 
+export interface EmailAccount {
+  id: string;
+  provider: string;
+  emailAddress: string;
+  lastScannedAt?: string;
+  isActive: boolean;
+}
+
 interface ExpenseContextType {
   user: User;
   expenses: Expense[];
@@ -62,6 +70,8 @@ interface ExpenseContextType {
   deleteBudget: (id: string) => Promise<void>;
   connectGmail: () => Promise<void>;
   scanInbox: () => Promise<void>;
+  connectedEmails: EmailAccount[];
+  disconnectEmail: (id: string) => Promise<void>;
   uploadStatement: (file: File) => Promise<boolean>;
   getTotalSpent: () => number;
   getSpentByCategory: (category: string) => number;
@@ -123,6 +133,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [pendingEmails, setPendingEmails] = useState<PendingEmail[]>([]);
+  const [connectedEmails, setConnectedEmails] = useState<EmailAccount[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -240,6 +251,19 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           channel: item.channel || 'Email',
           confidence: Number(item.confidence || 0),
           date: new Date(item.created_at),
+        })));
+      }
+
+      // 4. Fetch Connected Email Accounts
+      const emailAccountsRes = await api.get('/email/accounts');
+      if (emailAccountsRes.data?.success) {
+        const items = emailAccountsRes.data.data || [];
+        setConnectedEmails(items.map((acc: any) => ({
+          id: acc.id,
+          provider: acc.provider,
+          emailAddress: acc.email_address,
+          lastScannedAt: acc.last_scanned_at,
+          isActive: acc.is_active,
         })));
       }
     } catch (err) {
@@ -468,6 +492,19 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const disconnectEmail = async (id: string) => {
+    try {
+      const res = await api.delete(`/email/accounts/${id}`);
+      if (res.data?.success) {
+        setConnectedEmails(prev => prev.filter(acc => acc.id !== id));
+        toast.success('Email account disconnected successfully');
+        await fetchData();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to disconnect email account');
+    }
+  };
+
   const uploadStatement = async (file: File): Promise<boolean> => {
     const formData = new FormData();
     formData.append('statement', file);
@@ -549,6 +586,8 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteBudget,
         connectGmail,
         scanInbox,
+        connectedEmails,
+        disconnectEmail,
         uploadStatement,
         getTotalSpent,
         getSpentByCategory,

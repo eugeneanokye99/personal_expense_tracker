@@ -20,9 +20,20 @@ export class MomoParser {
 
     if (mimeType.includes('pdf')) {
       try {
-        const parseFn = typeof pdfParse === 'function' ? pdfParse : (pdfParse as any).default;
-        const parsedPdf = await parseFn(fileBuffer);
-        rawText = parsedPdf.text;
+        if (typeof (pdfParse as any).PDFParse === 'function') {
+          // New modern 'pdf-parse' package by Mehmet Kozan (TypeScript rewrite)
+          const instance = new (pdfParse as any).PDFParse(fileBuffer);
+          const parsedPdf = await instance.getText();
+          rawText = parsedPdf.text;
+        } else {
+          // Old classic 'pdf-parse' package
+          const parseFn = typeof pdfParse === 'function' ? pdfParse : (pdfParse as any).default;
+          if (typeof parseFn !== 'function') {
+            throw new Error('pdf-parse is not imported as a function');
+          }
+          const parsedPdf = await parseFn(fileBuffer);
+          rawText = parsedPdf.text;
+        }
       } catch (err) {
         console.error('Failed to extract text from PDF statement:', err);
         throw new Error('Could not parse PDF statement file.');

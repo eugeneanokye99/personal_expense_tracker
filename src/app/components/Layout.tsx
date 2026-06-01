@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Home, BarChart3, Plus, LogOut, Settings } from 'lucide-react';
+import { Home, BarChart3, Plus, LogOut, Settings, Trophy } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import AddExpenseModal from './AddExpenseModal';
 import { useExpenseStore } from '../store/ExpenseStore';
@@ -18,7 +18,8 @@ export default function Layout({ children }: LayoutProps) {
   const tabs = [
     { path: '/', icon: Home, label: 'Home' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
-    { path: '/settings', icon: Settings, label: 'Settings' }
+    { path: '/settings', icon: Settings, label: 'Settings' },
+    { path: '/achievements', icon: Trophy, label: 'Achievements' }
   ];
 
   return (
@@ -128,13 +129,15 @@ export default function Layout({ children }: LayoutProps) {
           <span className="text-[10px] font-medium">Settings</span>
         </button>
 
-        {/* Logout Tab */}
+        {/* Achievements Tab */}
         <button
-          onClick={logout}
-          className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-400 transition-all cursor-pointer"
+          onClick={() => navigate('/achievements')}
+          className={`flex flex-col items-center gap-1 transition-all ${
+            location.pathname === '/achievements' ? 'text-violet-400' : 'text-slate-400'
+          }`}
         >
-          <LogOut className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Log Out</span>
+          <Trophy className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Achievements</span>
         </button>
       </div>
 

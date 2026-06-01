@@ -1,16 +1,25 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router';
 import { ExpenseProvider, useExpenseStore } from './store/ExpenseStore';
 import { Toaster } from 'sonner';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
+import Achievements from './components/Achievements';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import NotificationManager from './components/NotificationManager';
 
 function AppRoutes() {
   const { user, isAuthenticated, isLoading } = useExpenseStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -35,6 +44,7 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/achievements" element={<Achievements />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
