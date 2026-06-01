@@ -49,27 +49,27 @@ export default function Dashboard() {
   const currencySymbol = getCurrencySymbol(user.currency);
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-violet-500/20 via-purple-500/10 to-pink-500/20 border border-violet-500/30 rounded-3xl p-8 shadow-2xl"
+        className="bg-gradient-to-br from-violet-500/20 via-purple-500/10 to-pink-500/20 border border-violet-500/30 rounded-3xl p-5 sm:p-8 shadow-2xl"
       >
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
           <div>
-            <div className="text-slate-400 mb-2">Total Spent This Month</div>
-            <div className="text-5xl font-bold text-white">
+            <div className="text-slate-400 text-xs sm:text-sm mb-1 sm:mb-2">Total Spent This Month</div>
+            <div className="text-3xl sm:text-5xl font-bold text-white tracking-tight">
               {currencySymbol}{getTotalSpent().toFixed(2)}
             </div>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-violet-500/20 rounded-xl border border-violet-500/30">
-            <Sparkles className="w-5 h-5 text-violet-400" />
-            <span className="text-violet-300 text-sm font-medium">May 2026</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-violet-500/20 rounded-xl border border-violet-500/30 self-start sm:self-auto">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" />
+            <span className="text-violet-300 text-xs sm:text-sm font-medium">May 2026</span>
           </div>
         </div>
 
-        <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800">
-          <div className="text-slate-300 text-sm mb-2 italic">"{funnyMessage}"</div>
+        <div className="bg-slate-900/50 rounded-2xl p-4 sm:p-6 border border-slate-800">
+          <div className="text-slate-300 text-xs sm:text-sm mb-1 italic leading-relaxed">"{funnyMessage}"</div>
         </div>
       </motion.div>
 
@@ -159,32 +159,32 @@ export default function Dashboard() {
           className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl"
         >
           <h3 className="text-slate-400 mb-6">Recent Transactions</h3>
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {expenses.slice(0, 8).map((expense, index) => (
               <motion.div
                 key={expense.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.05 * index }}
-                className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group"
+                className="flex items-center justify-between p-3 sm:p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group gap-2 min-w-0"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
-                    <span className="text-xl">{expense.category[0]}</span>
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg sm:text-xl">{expense.category[0]}</span>
                   </div>
-                  <div>
-                    <div className="text-white font-medium">{expense.merchant}</div>
-                    <div className="text-slate-400 text-sm flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="text-white font-medium truncate text-sm sm:text-base">{expense.merchant}</div>
+                    <div className="text-slate-400 text-xs sm:text-sm flex items-center gap-1.5 truncate">
                       <span>{expense.category}</span>
                       {expense.source === 'email' && (
-                        <span className="px-2 py-0.5 bg-violet-500/20 text-violet-300 rounded text-xs">Auto</span>
+                        <span className="px-1.5 py-0.5 bg-violet-500/20 text-violet-300 rounded text-[10px] sm:text-xs">Auto</span>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-white font-semibold">{currencySymbol}{expense.amount.toFixed(2)}</div>
-                  <div className="text-slate-500 text-sm">{format(new Date(expense.date), 'MMM dd')}</div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-white font-semibold text-sm sm:text-base">{currencySymbol}{expense.amount.toFixed(2)}</div>
+                  <div className="text-slate-500 text-xs sm:text-sm">{format(new Date(expense.date), 'MMM dd')}</div>
                 </div>
               </motion.div>
             ))}
