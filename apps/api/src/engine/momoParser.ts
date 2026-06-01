@@ -22,7 +22,7 @@ export class MomoParser {
       try {
         if (typeof (pdfParse as any).PDFParse === 'function') {
           // New modern 'pdf-parse' package by Mehmet Kozan (TypeScript rewrite)
-          const instance = new (pdfParse as any).PDFParse(fileBuffer);
+          const instance = new (pdfParse as any).PDFParse(new Uint8Array(fileBuffer));
           const parsedPdf = await instance.getText();
           rawText = parsedPdf.text;
         } else {
