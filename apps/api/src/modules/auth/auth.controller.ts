@@ -26,7 +26,7 @@ export class AuthController {
           sameSite: 'none',
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         })
-        .json({ success: true, data: { accessToken: result.accessToken, user: result.user } });
+        .json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, user: result.user } });
     } catch (err) {
       next(err);
     }
@@ -51,7 +51,7 @@ export class AuthController {
 
   static async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const refreshToken = req.cookies?.refresh_token;
+      const refreshToken = req.cookies?.refresh_token || req.body.refreshToken;
       if (!refreshToken) throw new AppError('Refresh token missing', 401);
       const result = await AuthService.refreshAccessToken(refreshToken);
       res.json({ success: true, data: { accessToken: result.accessToken } });

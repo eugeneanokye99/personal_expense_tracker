@@ -17,7 +17,6 @@ export async function exchangeCodeForTokens(code: string) {
 
   const gmail = google.gmail({ version: 'v1', auth: client });
   const profile = await gmail.users.getProfile({ userId: 'me' });
-  await gmail.users.history.list({ userId: 'me', maxResults: 1 });
 
   const oauth2 = google.oauth2({ version: 'v2', auth: client });
   const userInfo = await oauth2.userinfo.get();

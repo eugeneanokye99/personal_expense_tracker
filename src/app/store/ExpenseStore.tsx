@@ -146,14 +146,22 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (err.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
           try {
-            const refreshRes = await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
+            const localRefreshToken = localStorage.getItem('refresh_token');
+            const refreshRes = await axios.post(
+              `${API_URL}/auth/refresh`,
+              { refreshToken: localRefreshToken },
+              { withCredentials: true }
+            );
             if (refreshRes.data?.success && refreshRes.data?.data?.accessToken) {
               const accessToken = refreshRes.data.data.accessToken;
+              localStorage.setItem('access_token', accessToken);
               api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
               originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
               return api(originalRequest);
             }
           } catch (refreshErr) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
             setIsAuthenticated(false);
             setUser({
               name: '',
@@ -178,6 +186,10 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Check login status on launch
   useEffect(() => {
     const initAuth = async () => {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
       try {
         const res = await api.get('/users/me');
         if (res.data?.success && res.data?.data) {
@@ -199,6 +211,41 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await fetchData();
         }
       } catch (err) {
+        // Fallback: If initial load fails (e.g. token expired), try using the refresh token from localStorage
+        const localRefreshToken = localStorage.getItem('refresh_token');
+        if (localRefreshToken) {
+          try {
+            const refreshRes = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: localRefreshToken }, { withCredentials: true });
+            if (refreshRes.data?.success && refreshRes.data?.data?.accessToken) {
+              const newAccessToken = refreshRes.data.data.accessToken;
+              localStorage.setItem('access_token', newAccessToken);
+              api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+              
+              const profileRes = await api.get('/users/me');
+              if (profileRes.data?.success && profileRes.data?.data) {
+                const profile = profileRes.data.data;
+                const savedChannels = localStorage.getItem(`channels_${profile.email}`);
+                setUser({
+                  name: profile.display_name,
+                  email: profile.email,
+                  currency: profile.currency || 'GHS',
+                  emailConnected: true,
+                  notificationsEnabled: profile.alert_frequency !== 'off',
+                  onboardingComplete: profile.onboarding_complete,
+                  budgetResetInterval: profile.budget_reset_interval || 'monthly',
+                  budgetResetDay: profile.budget_reset_day || 1,
+                  phoneNumber: profile.phone_number,
+                  selectedChannels: savedChannels ? JSON.parse(savedChannels) : [],
+                });
+                setIsAuthenticated(true);
+                await fetchData();
+                return;
+              }
+            }
+          } catch (refreshErr) {
+            console.error('Initial session refresh failed:', refreshErr);
+          }
+        }
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
@@ -276,6 +323,12 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const res = await api.post('/auth/login', { email, password });
       if (res.data?.success && res.data?.data?.accessToken) {
         const accessToken = res.data.data.accessToken;
+        const refreshToken = res.data.data.refreshToken;
+        
+        localStorage.setItem('access_token', accessToken);
+        if (refreshToken) {
+          localStorage.setItem('refresh_token', refreshToken);
+        }
         api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         
         // Fetch profile immediately to populate state before transition
@@ -342,6 +395,8 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (err) {
       console.error('Logout request failed:', err);
     } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       delete api.defaults.headers.common['Authorization'];
       setIsAuthenticated(false);
       setUser({
