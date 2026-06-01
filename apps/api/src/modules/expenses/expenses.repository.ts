@@ -120,7 +120,7 @@ export class ExpensesRepository {
   static async createPendingTransaction(client: any, userId: string, tx: any) {
     const { data, error } = await client
       .from('pending_email_transactions')
-      .insert({
+      .upsert({
         user_id: userId,
         parsed_amount: tx.parsedAmount,
         merchant: tx.merchant,
@@ -130,7 +130,7 @@ export class ExpensesRepository {
         confidence: tx.confidence,
         gmail_message_id: tx.gmailMessageId,
         status: tx.status ?? 'pending',
-      })
+      }, { onConflict: 'user_id,gmail_message_id' })
       .select()
       .single();
 
