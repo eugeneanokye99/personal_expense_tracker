@@ -79,6 +79,8 @@ interface ExpenseContextType {
   fetchData: () => Promise<void>;
   confirmPendingEmail: (id: string, overrides?: { category?: string; merchant?: string; amount?: number }) => Promise<void>;
   rejectPendingEmail: (id: string) => Promise<void>;
+  unlockedAchievements: string[];
+  unlockAchievement: (achievementId: string) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
@@ -108,7 +110,7 @@ const ENCOURAGING_MESSAGES = [
   "Wow, look at you being all responsible!"
 ];
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
 
 // Configure Axios Instance
 const api = axios.create({
@@ -134,6 +136,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [pendingEmails, setPendingEmails] = useState<PendingEmail[]>([]);
   const [connectedEmails, setConnectedEmails] = useState<EmailAccount[]>([]);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -210,7 +213,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setIsAuthenticated(true);
           await fetchData();
         }
-      } catch (err) {
+      } catch (err: any) {
         // Fallback: If initial load fails (e.g. token expired), try using the refresh token from localStorage
         const localRefreshToken = localStorage.getItem('refresh_token');
         if (localRefreshToken) {
@@ -242,8 +245,8 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 return;
               }
             }
-          } catch (refreshErr) {
-            console.error('Initial session refresh failed:', refreshErr);
+          } catch (refreshErr: any) {
+            // Refresh failed
           }
         }
         setIsAuthenticated(false);
@@ -301,7 +304,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         })));
       }
 
-      // 4. Fetch Connected Email Accounts
+      // 5. Fetch Connected Email Accounts
       const emailAccountsRes = await api.get('/email/accounts');
       if (emailAccountsRes.data?.success) {
         const items = emailAccountsRes.data.data || [];
@@ -312,6 +315,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           lastScannedAt: acc.last_scanned_at,
           isActive: acc.is_active,
         })));
+      }
+
+      // 6. Fetch Unlocked Achievements from Database
+      try {
+        const achievementsRes = await api.get('/achievements');
+        if (achievementsRes.data?.success) {
+          setUnlockedAchievements(achievementsRes.data.data || []);
+        }
+      } catch (achErr) {
+        console.error('Failed to fetch achievements from DB:', achErr);
       }
     } catch (err) {
       console.error('Failed to fetch data from API:', err);
@@ -622,6 +635,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return (getSpentByCategory(category) / total) * 100;
   };
 
+  const unlockAchievement = async (achievementId: string) => {
+    try {
+      setUnlockedAchievements(prev => {
+        if (prev.includes(achievementId)) return prev;
+        return [...prev, achievementId];
+      });
+      await api.post('/achievements/unlock', { achievementId });
+    } catch (err) {
+      console.error('Failed to unlock achievement in DB:', err);
+    }
+  };
+
   return (
     <ExpenseContext.Provider
       value={{
@@ -649,7 +674,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         getCategoryPercentage,
         fetchData,
         confirmPendingEmail,
-        rejectPendingEmail
+        rejectPendingEmail,
+        unlockedAchievements,
+        unlockAchievement
       }}
     >
       {children}

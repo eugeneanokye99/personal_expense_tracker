@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Target, TrendingUp, Sparkles, CheckCircle2, Circle, Plus, Coins, Star } from 'lucide-react';
+import { Trophy, Target, TrendingUp, Sparkles, CheckCircle2, Circle, Plus, Coins, Star, Moon, Wallet } from 'lucide-react';
 import { useExpenseStore } from '../store/ExpenseStore';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 
 export default function Achievements() {
-  const { expenses, budgets, getTotalSpent, user } = useExpenseStore();
+  const { expenses, budgets, getTotalSpent, user, unlockedAchievements, unlockAchievement } = useExpenseStore();
   const [savingsGoal, setSavingsGoal] = useState<number>(1000);
   const [savingsProgress, setSavingsProgress] = useState<number>(250);
   const [depositAmount, setDepositAmount] = useState<string>('');
@@ -77,58 +77,175 @@ export default function Achievements() {
 
   const currencySymbol = getCurrencySymbol(user.currency);
 
-  // --- PERSISTENT BADGES CALCULATION ---
+  // --- 8 PERSISTENT DYNAMIC BADGES CALCULATION ---
+  
+  // 1. Budget Boss: Set >= 3 active budgets
   const activeBudgetsCount = budgets.length;
   const isBudgetBossUnlocked = activeBudgetsCount >= 3;
 
-  // MoMo Master: count expenses with source='email' or containing MoMo keywords
+  // 2. MoMo Master: Count >= 5 email receipts or Mobile Money transactions
   const momoTransactions = expenses.filter(e => 
     e.source === 'email' || 
     (e.tags || []).some(t => t.toLowerCase().includes('momo') || t.toLowerCase().includes('money'))
   ).length;
   const isMoMoMasterUnlocked = momoTransactions >= 5;
 
-  // Super Saver: Spent less than 50% of the total budget limits
+  // 3. Super Saver: Spent less than 50% of the total budget limits
   const totalBudgetLimit = budgets.reduce((sum, b) => sum + b.limit, 0);
   const totalSpent = getTotalSpent();
   const isSuperSaverUnlocked = totalBudgetLimit > 0 && totalSpent < (totalBudgetLimit * 0.5);
 
+  // 4. Savings Champion: Completed the Savings Booster target
+  const isSavingsChampionUnlocked = savingsProgress >= savingsGoal;
+
+  // 5. Debt Destroyer: Logged >= 3 transfers or debt payback notes
+  const transferCount = expenses.filter(e => 
+    e.category === 'Transfers' || 
+    e.description.toLowerCase().includes('debt') || 
+    e.description.toLowerCase().includes('payback')
+  ).length;
+  const isDebtDestroyerUnlocked = transferCount >= 3;
+
+  // 6. Splurge Survivor: Tracked >= 15 transactions total
+  const totalTransactions = expenses.length;
+  const isSplurgeSurvivorUnlocked = totalTransactions >= 15;
+
+  // 7. Night Owl Spender: Logged >= 2 after-hours transactions (11 PM - 4 AM)
+  const nightTransactions = expenses.filter(e => {
+    const hour = new Date(e.date).getHours();
+    return hour >= 23 || hour <= 4;
+  }).length;
+  const isNightOwlSpenderUnlocked = nightTransactions >= 2;
+
+  // 8. Cash King: Logged >= 5 manual cash transactions
+  const cashTransactions = expenses.filter(e => e.source === 'manual').length;
+  const isCashKingUnlocked = cashTransactions >= 5;
+
+  // Sync unlocked achievements with backend DB
+  useEffect(() => {
+    const triggerUnlock = async (id: string, name: string) => {
+      if (!unlockedAchievements.includes(id)) {
+        await unlockAchievement(id);
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        toast.success(`🏅 Achievement Unlocked: ${name}!`, {
+          description: "This milestone is now permanently saved to your profile in the database!"
+        });
+      }
+    };
+
+    if (isBudgetBossUnlocked) triggerUnlock('budget_boss', 'Budget Boss');
+    if (isMoMoMasterUnlocked) triggerUnlock('momo_master', 'MoMo Master');
+    if (isSuperSaverUnlocked) triggerUnlock('super_saver', 'Super Saver');
+    if (isSavingsChampionUnlocked) triggerUnlock('savings_champion', 'Savings Champion');
+    if (isDebtDestroyerUnlocked) triggerUnlock('debt_destroyer', 'Debt Destroyer');
+    if (isSplurgeSurvivorUnlocked) triggerUnlock('splurge_survivor', 'Splurge Survivor');
+    if (isNightOwlSpenderUnlocked) triggerUnlock('night_owl_spender', 'Night Owl Spender');
+    if (isCashKingUnlocked) triggerUnlock('cash_king', 'Cash King');
+  }, [
+    isBudgetBossUnlocked,
+    isMoMoMasterUnlocked,
+    isSuperSaverUnlocked,
+    isSavingsChampionUnlocked,
+    isDebtDestroyerUnlocked,
+    isSplurgeSurvivorUnlocked,
+    isNightOwlSpenderUnlocked,
+    isCashKingUnlocked,
+    unlockedAchievements
+  ]);
+
   const badges = [
     {
+      id: 'budget_boss',
       title: 'Budget Boss',
       description: 'Set at least 3 active category budgets to organise your limits.',
       requirement: `Category budgets set: ${activeBudgetsCount}/3`,
       progress: (activeBudgetsCount / 3) * 100,
-      unlocked: isBudgetBossUnlocked,
+      unlocked: isBudgetBossUnlocked || unlockedAchievements.includes('budget_boss'),
       icon: Target,
       color: 'from-violet-500 to-purple-500'
     },
     {
+      id: 'momo_master',
       title: 'MoMo Master',
       description: 'Confirm at least 5 email receipts or Mobile Money transactions.',
       requirement: `Transactions logged: ${momoTransactions}/5`,
       progress: (momoTransactions / 5) * 100,
-      unlocked: isMoMoMasterUnlocked,
+      unlocked: isMoMoMasterUnlocked || unlockedAchievements.includes('momo_master'),
       icon: Coins,
       color: 'from-amber-500 to-orange-500'
     },
     {
+      id: 'super_saver',
       title: 'Super Saver',
       description: 'Keep your active total monthly spending below 50% of your set budget limits.',
       requirement: totalBudgetLimit > 0 
         ? `Spent: ${currencySymbol}${totalSpent.toFixed(0)} / Max: ${currencySymbol}${(totalBudgetLimit * 0.5).toFixed(0)}`
         : 'Set budgets to start this challenge!',
       progress: totalBudgetLimit > 0 ? Math.max(0, Math.min(100, (1 - (totalSpent / totalBudgetLimit)) * 100)) : 0,
-      unlocked: isSuperSaverUnlocked,
+      unlocked: isSuperSaverUnlocked || unlockedAchievements.includes('super_saver'),
       icon: Star,
       color: 'from-emerald-500 to-teal-500'
+    },
+    {
+      id: 'savings_champion',
+      title: 'Savings Champion',
+      description: 'Fully complete your set Savings Challenge Booster goal.',
+      requirement: `Progress: ${currencySymbol}${savingsProgress.toFixed(0)} / ${currencySymbol}${savingsGoal.toFixed(0)}`,
+      progress: (savingsProgress / savingsGoal) * 100,
+      unlocked: isSavingsChampionUnlocked || unlockedAchievements.includes('savings_champion'),
+      icon: Trophy,
+      color: 'from-pink-500 to-rose-500'
+    },
+    {
+      id: 'debt_destroyer',
+      title: 'Debt Destroyer',
+      description: 'Log at least 3 transfers or debt payback transactions.',
+      requirement: `Transfers logged: ${transferCount}/3`,
+      progress: (transferCount / 3) * 100,
+      unlocked: isDebtDestroyerUnlocked || unlockedAchievements.includes('debt_destroyer'),
+      icon: TrendingUp,
+      color: 'from-blue-500 to-indigo-500'
+    },
+    {
+      id: 'splurge_survivor',
+      title: 'Splurge Survivor',
+      description: 'Track at least 15 transactions to prove your consistent discipline.',
+      requirement: `Transactions logged: ${totalTransactions}/15`,
+      progress: (totalTransactions / 15) * 100,
+      unlocked: isSplurgeSurvivorUnlocked || unlockedAchievements.includes('splurge_survivor'),
+      icon: CheckCircle2,
+      color: 'from-teal-500 to-cyan-500'
+    },
+    {
+      id: 'night_owl_spender',
+      title: 'Night Owl Spender',
+      description: 'Log at least 2 after-hours transactions (11 PM - 4 AM). Late night Gob3 cravings?',
+      requirement: `Late night spending: ${nightTransactions}/2`,
+      progress: (nightTransactions / 2) * 100,
+      unlocked: isNightOwlSpenderUnlocked || unlockedAchievements.includes('night_owl_spender'),
+      icon: Moon,
+      color: 'from-purple-600 to-indigo-900'
+    },
+    {
+      id: 'cash_king',
+      title: 'Cash King',
+      description: 'Log at least 5 manual cash transactions in SpendWisely.',
+      requirement: `Manual entries: ${cashTransactions}/5`,
+      progress: (cashTransactions / 5) * 100,
+      unlocked: isCashKingUnlocked || unlockedAchievements.includes('cash_king'),
+      icon: Wallet,
+      color: 'from-amber-600 to-yellow-500'
     }
   ];
 
-  const unlockedCount = badges.filter(b => b.unlocked).length + (savingsProgress >= savingsGoal ? 1 : 0);
+  const unlockedCount = badges.filter(b => b.unlocked).length;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8 select-none">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div>
@@ -136,20 +253,20 @@ export default function Achievements() {
             <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
               <Trophy className="w-5 h-5 text-white" />
             </div>
-            Achievements
+            Achievements & Milestones
           </h2>
-          <p className="text-slate-400 text-sm">Challenge yourself to hit milestones and grow your savings</p>
+          <p className="text-slate-400 text-sm">Earn persistent badges, hit key financial milestones, and save securely</p>
         </div>
         <div className="px-4 py-2 bg-violet-500/10 border border-violet-500/20 rounded-xl flex items-center gap-2 self-stretch sm:self-auto text-center justify-center">
-          <Sparkles className="w-4 h-4 text-violet-400" />
+          <Sparkles className="w-4 h-4 text-violet-400 animate-pulse" />
           <span className="text-violet-300 font-semibold text-sm">
-            {unlockedCount} / {badges.length + 1} Milestones Met
+            {unlockedCount} / {badges.length} Unlocked
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Savings Goal Card (Persistent & Highly Functional) */}
+        {/* Savings Goal Card */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -263,24 +380,24 @@ export default function Achievements() {
 
         {/* Dynamic Financial Badges Grid */}
         <div className="md:col-span-3 space-y-4">
-          <h3 className="text-slate-400 text-sm font-semibold flex items-center gap-2">
+          <h3 className="text-slate-450 text-sm font-semibold flex items-center gap-2">
             <Trophy className="w-4 h-4 text-slate-500" />
-            Financial Milestones
+            Financial Achievements (Persistent in DB)
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {badges.map((badge, index) => {
               const IconComponent = badge.icon;
               return (
                 <motion.div
-                  key={badge.title}
+                  key={badge.id}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.05 }}
+                  transition={{ delay: 0.05 + index * 0.03 }}
                   className={`p-6 rounded-3xl border flex flex-col justify-between transition-all ${
                     badge.unlocked
                       ? 'bg-slate-900/80 border-slate-800 shadow-xl'
-                      : 'bg-slate-950/20 border-slate-900/60 opacity-60'
+                      : 'bg-slate-950/20 border-slate-900/60 opacity-55'
                   }`}
                 >
                   <div className="space-y-4">
@@ -305,15 +422,15 @@ export default function Achievements() {
                       <h4 className="text-white font-bold text-base flex items-center gap-1.5">
                         {badge.title}
                       </h4>
-                      <p className="text-slate-400 text-xs mt-1 leading-relaxed min-h-[40px]">
+                      <p className="text-slate-400 text-xs mt-1.5 leading-relaxed min-h-[48px]">
                         {badge.description}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-6 space-y-2">
-                    <div className="flex justify-between text-[10px] font-semibold text-slate-500">
-                      <span>{badge.requirement}</span>
+                    <div className="flex justify-between text-[10px] font-semibold text-slate-550">
+                      <span className="truncate max-w-[70%]">{badge.requirement}</span>
                       <span>{badge.progress.toFixed(0)}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-900">
