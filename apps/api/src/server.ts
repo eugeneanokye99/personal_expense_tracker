@@ -14,6 +14,7 @@ import expensesRoutes from './modules/expenses/expenses.routes';
 import budgetsRoutes from './modules/budgets/budgets.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
 import emailRoutes from './modules/email/email.routes';
+import achievementsRoutes from './modules/achievements/achievements.routes';
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use(`${V1}/expenses`, expensesRoutes);
 app.use(`${V1}/budgets`, budgetsRoutes);
 app.use(`${V1}/notifications`, notificationsRoutes);
 app.use(`${V1}/email`, emailRoutes);
+app.use(`${V1}/achievements`, achievementsRoutes);
 
 // ── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

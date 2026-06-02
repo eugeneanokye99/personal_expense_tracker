@@ -79,6 +79,8 @@ interface ExpenseContextType {
   fetchData: () => Promise<void>;
   confirmPendingEmail: (id: string, overrides?: { category?: string; merchant?: string; amount?: number }) => Promise<void>;
   rejectPendingEmail: (id: string) => Promise<void>;
+  unlockedAchievements: string[];
+  unlockAchievement: (achievementId: string) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
@@ -134,6 +136,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [pendingEmails, setPendingEmails] = useState<PendingEmail[]>([]);
   const [connectedEmails, setConnectedEmails] = useState<EmailAccount[]>([]);
+  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -191,8 +194,10 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
       try {
+        console.log('🔑 initAuth: Attempting profile fetch using localStorage access_token...');
         const res = await api.get('/users/me');
         if (res.data?.success && res.data?.data) {
+          console.log('✅ initAuth: Profile fetch successful!', res.data.data.email);
           const profile = res.data.data;
           const savedChannels = localStorage.getItem(`channels_${profile.email}`);
           setUser({
@@ -210,13 +215,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setIsAuthenticated(true);
           await fetchData();
         }
-      } catch (err) {
+      } catch (err: any) {
+        console.warn('⚠️ initAuth: Initial profile fetch failed, trying refresh token...', err.response?.data || err.message);
         // Fallback: If initial load fails (e.g. token expired), try using the refresh token from localStorage
         const localRefreshToken = localStorage.getItem('refresh_token');
         if (localRefreshToken) {
           try {
+            console.log('🔑 initAuth: Found refresh token. Attempting silent session refresh...');
             const refreshRes = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: localRefreshToken }, { withCredentials: true });
             if (refreshRes.data?.success && refreshRes.data?.data?.accessToken) {
+              console.log('✅ initAuth: Silent session refresh successful!');
               const newAccessToken = refreshRes.data.data.accessToken;
               localStorage.setItem('access_token', newAccessToken);
               api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
@@ -242,9 +250,11 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 return;
               }
             }
-          } catch (refreshErr) {
-            console.error('Initial session refresh failed:', refreshErr);
+          } catch (refreshErr: any) {
+            console.error('❌ initAuth: Silent session refresh failed:', refreshErr.response?.data || refreshErr.message);
           }
+        } else {
+          console.warn('⚠️ initAuth: No refresh token found in localStorage.');
         }
         setIsAuthenticated(false);
       } finally {
@@ -301,7 +311,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         })));
       }
 
-      // 4. Fetch Connected Email Accounts
+      // 5. Fetch Connected Email Accounts
       const emailAccountsRes = await api.get('/email/accounts');
       if (emailAccountsRes.data?.success) {
         const items = emailAccountsRes.data.data || [];
@@ -312,6 +322,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           lastScannedAt: acc.last_scanned_at,
           isActive: acc.is_active,
         })));
+      }
+
+      // 6. Fetch Unlocked Achievements from Database
+      try {
+        const achievementsRes = await api.get('/achievements');
+        if (achievementsRes.data?.success) {
+          setUnlockedAchievements(achievementsRes.data.data || []);
+        }
+      } catch (achErr) {
+        console.error('Failed to fetch achievements from DB:', achErr);
       }
     } catch (err) {
       console.error('Failed to fetch data from API:', err);
@@ -622,6 +642,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return (getSpentByCategory(category) / total) * 100;
   };
 
+  const unlockAchievement = async (achievementId: string) => {
+    try {
+      setUnlockedAchievements(prev => {
+        if (prev.includes(achievementId)) return prev;
+        return [...prev, achievementId];
+      });
+      await api.post('/achievements/unlock', { achievementId });
+    } catch (err) {
+      console.error('Failed to unlock achievement in DB:', err);
+    }
+  };
+
   return (
     <ExpenseContext.Provider
       value={{
@@ -649,7 +681,9 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         getCategoryPercentage,
         fetchData,
         confirmPendingEmail,
-        rejectPendingEmail
+        rejectPendingEmail,
+        unlockedAchievements,
+        unlockAchievement
       }}
     >
       {children}
