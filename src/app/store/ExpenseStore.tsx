@@ -110,7 +110,7 @@ const ENCOURAGING_MESSAGES = [
   "Wow, look at you being all responsible!"
 ];
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
 
 // Configure Axios Instance
 const api = axios.create({
@@ -194,10 +194,8 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
       try {
-        console.log('🔑 initAuth: Attempting profile fetch using localStorage access_token...');
         const res = await api.get('/users/me');
         if (res.data?.success && res.data?.data) {
-          console.log('✅ initAuth: Profile fetch successful!', res.data.data.email);
           const profile = res.data.data;
           const savedChannels = localStorage.getItem(`channels_${profile.email}`);
           setUser({
@@ -216,15 +214,12 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await fetchData();
         }
       } catch (err: any) {
-        console.warn('⚠️ initAuth: Initial profile fetch failed, trying refresh token...', err.response?.data || err.message);
         // Fallback: If initial load fails (e.g. token expired), try using the refresh token from localStorage
         const localRefreshToken = localStorage.getItem('refresh_token');
         if (localRefreshToken) {
           try {
-            console.log('🔑 initAuth: Found refresh token. Attempting silent session refresh...');
             const refreshRes = await axios.post(`${API_URL}/auth/refresh`, { refreshToken: localRefreshToken }, { withCredentials: true });
             if (refreshRes.data?.success && refreshRes.data?.data?.accessToken) {
-              console.log('✅ initAuth: Silent session refresh successful!');
               const newAccessToken = refreshRes.data.data.accessToken;
               localStorage.setItem('access_token', newAccessToken);
               api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
@@ -251,10 +246,8 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
               }
             }
           } catch (refreshErr: any) {
-            console.error('❌ initAuth: Silent session refresh failed:', refreshErr.response?.data || refreshErr.message);
+            // Refresh failed
           }
-        } else {
-          console.warn('⚠️ initAuth: No refresh token found in localStorage.');
         }
         setIsAuthenticated(false);
       } finally {

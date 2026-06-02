@@ -105,7 +105,8 @@ export class ExpensesService {
           source: 'email', // Route to 'email' (automatic entry) to fit DB constraint
           transactionType: tx.transactionType,
           channel: tx.channel,
-          note: `Uploaded statement transaction: ${tx.merchant} (${tx.channel}) [TxHash: ${txHash.slice(0, 8)}]`,
+          note: tx.reference ? `Reference: ${tx.reference}` : `Uploaded statement transaction: ${tx.merchant} (${tx.channel}) [TxHash: ${txHash.slice(0, 8)}]`,
+          description: tx.reference,
         });
         savedCount++;
       } else {
